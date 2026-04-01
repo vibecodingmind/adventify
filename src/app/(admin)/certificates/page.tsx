@@ -14,21 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Award, Search, Loader2, Download, ExternalLink, QrCode } from 'lucide-react';
-import { Role } from '@prisma/client';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Award, Search, Loader2, Download, ExternalLink } from 'lucide-react';
 
 interface Certificate {
   id: string;
   bcn: string;
   certificateDate: string;
   verificationUrl: string;
-  qrCodeData?: string | null;
   baptismRecord: {
     id: string;
     baptismDate: string;
@@ -46,7 +38,6 @@ export default function CertificatesPage() {
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
   const [downloading, setDownloading] = useState<string | null>(null);
-  const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
 
   useEffect(() => {
     fetchCertificates();
@@ -217,14 +208,6 @@ export default function CertificatesPage() {
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedCert(cert)}
-                          title="View QR Code"
-                        >
-                          <QrCode className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
                           className="bg-emerald-600 hover:bg-emerald-700"
                           onClick={() => handleDownload(cert)}
                           disabled={downloading === cert.id}
@@ -244,31 +227,6 @@ export default function CertificatesPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* QR Code Dialog */}
-      <Dialog open={!!selectedCert} onOpenChange={(open) => { if (!open) setSelectedCert(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>QR Code - {selectedCert?.bcn}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            {selectedCert?.qrCodeData ? (
-              <img
-                src={selectedCert.qrCodeData}
-                alt="QR Code for certificate verification"
-                className="w-64 h-64 object-contain"
-              />
-            ) : (
-              <div className="w-64 h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                <p className="text-gray-500 text-sm">QR Code not available</p>
-              </div>
-            )}
-            <p className="text-xs text-gray-500 text-center">
-              Scan to verify certificate at: {selectedCert?.verificationUrl}
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
