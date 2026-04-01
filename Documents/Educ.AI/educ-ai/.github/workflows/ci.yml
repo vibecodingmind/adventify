@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [ '18.x' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Cache frontend node_modules
+        uses: actions/cache@v3
+        with:
+          path: frontend/node_modules
+          key: frontend-${{ matrix.node-version }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: frontend-${{ matrix.node-version }}-
+      - name: Cache backend node_modules
+        uses: actions/cache@v3
+        with:
+          path: backend/node_modules
+          key: backend-${{ matrix.node-version }}-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: backend-${{ matrix.node-version }}-
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+      - name: Run frontend lint
+        working-directory: frontend
+        run: npm run lint || true
+      - name: Run tests (if any)
+        run: echo "No tests configured"

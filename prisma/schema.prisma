@@ -1,0 +1,215 @@
+// ADVENTIFY - Global Baptism Certificate Platform
+// Prisma Schema for Seventh-day Adventist Church Hierarchy
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Roles - Church Hierarchy
+enum Role {
+  GENERAL_CONFERENCE_ADMIN
+  DIVISION_ADMIN
+  UNION_ADMIN
+  CONFERENCE_ADMIN
+  CHURCH_ADMIN
+  MEMBER
+}
+
+// Baptism Record Status
+enum BaptismStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Users table - Authentication and Authorization
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  phone        String?
+
+  // Foreign keys for role-specific access
+  divisionId   String?
+  unionId      String?
+  conferenceId String?
+  churchId     String?
+  personId     String? @unique // For MEMBER role - links to their person record
+
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  division    Division?   @relation(fields: [divisionId], references: [id])
+  union       Union?      @relation(fields: [unionId], references: [id])
+  conference  Conference? @relation(fields: [conferenceId], references: [id])
+  church      Church?     @relation(fields: [churchId], references: [id])
+  person      Person?     @relation(fields: [personId], references: [id])
+  auditLogs   AuditLog[]
+}
+
+// Division - Highest organizational unit (e.g., Euro-Asia Division, North American Division)
+model Division {
+  id            String   @id @default(cuid())
+  code          String   @unique // EUD, NAD, SAD, etc.
+  name          String
+  headquarters  String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  unions  Union[]
+  users   User[]
+}
+
+// Union - Regional organization under Division (e.g., Ukrainian Union, British Union)
+model Union {
+  id            String   @id @default(cuid())
+  code          String   @unique // UKU, BUC, etc.
+  name          String
+  divisionId    String
+  headquarters  String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  division    Division     @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  conferences Conference[]
+  users       User[]
+}
+
+// Conference - Local conference under Union (e.g., South England Conference)
+model Conference {
+  id            String   @id @default(cuid())
+  code          String   @unique // SEC, NEC, etc.
+  name          String
+  unionId       String
+  headquarters  String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  union    Union    @relation(fields: [unionId], references: [id], onDelete: Cascade)
+  churches Church[]
+  users    User[]
+}
+
+// Church - Local church under Conference
+model Church {
+  id           String   @id @default(cuid())
+  code         String // 001, 002, etc. (unique within conference)
+  name         String
+  conferenceId String
+  address      String?
+  city         String?
+  state        String?
+  country      String?
+  postalCode   String?
+  phone        String?
+  email        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conference     Conference     @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  persons        Person[]
+  baptismRecords BaptismRecord[]
+  users          User[]
+
+  @@unique([code, conferenceId])
+}
+
+// Person - Minimal identity system (separate from membership)
+model Person {
+  id          String    @id @default(cuid())
+  pid         String    @unique // Person ID - unique identifier
+  fullName    String
+  dateOfBirth DateTime?
+  gender      String? // Male, Female
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  country     String?
+  churchId    String? // Optional church association
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  church       Church?       @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  baptismRecord BaptismRecord?
+  user         User?
+}
+
+// Baptism Record - Core baptism information
+model BaptismRecord {
+  id              String        @id @default(cuid())
+  personId        String        @unique
+  churchId        String
+  baptismDate     DateTime
+  baptismLocation String? // If different from church
+  pastorName      String
+  pastorTitle     String? // Pastor, Elder, etc.
+  witnessName     String?
+  status          BaptismStatus @default(PENDING)
+  approvedBy      String? // User ID of approver
+  approvedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  person      Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  church      Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  certificate Certificate?
+}
+
+// Certificate - Generated baptism certificate
+model Certificate {
+  id               String   @id @default(cuid())
+  bcn              String   @unique // Baptism Certificate Number: DIV-UNI-CON-CH-YEAR-SERIAL
+  baptismRecordId  String   @unique
+  certificateDate  DateTime @default(now())
+  pdfData          String? // Base64 encoded PDF
+  qrCodeData       String? // Base64 encoded QR code
+  verificationUrl  String
+  printedAt        DateTime?
+  downloadedAt     DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  baptismRecord BaptismRecord @relation(fields: [baptismRecordId], references: [id], onDelete: Cascade)
+}
+
+// Audit Log - Track all system actions
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String // CREATE, UPDATE, DELETE, APPROVE, REJECT, LOGIN, LOGOUT
+  entity     String // User, Division, Union, Conference, Church, Person, BaptismRecord, Certificate
+  entityId   String?
+  details    String? // JSON string for additional details
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// System Settings - Application configuration
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
