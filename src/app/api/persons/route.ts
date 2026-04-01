@@ -145,14 +145,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = personSchema.parse(body);
     
-    // Church admin can only create persons for their church
+    // Church admin - auto-assign their church
     if (session.role === Role.CHURCH_ADMIN) {
-      if (!validatedData.churchId || validatedData.churchId !== session.churchId) {
+      if (validatedData.churchId && validatedData.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only create persons for your church' },
           { status: 403 }
         );
       }
+      validatedData.churchId = session.churchId;
     }
     
     // Verify church exists if provided
