@@ -83,8 +83,44 @@ export async function PATCH(
       );
     }
 
+    const body = await request.json();
+    const { isDefault } = body;
+
+    // Church Pastors cannot update templates at all
+    if (session.role === Role.CHURCH_PASTOR) {
+      return NextResponse.json(
+        { success: false, error: 'Pastors cannot modify templates' },
+        { status: 403 }
+      );
+    }
+
+    // Church Clerks can ONLY set isDefault for their church's templates
+    if (session.role === Role.CHURCH_CLERK) {
+      // Clerk can only set/unset default on church-level templates
+      if (!template.churchId || template.churchId !== session.churchId) {
+        return NextResponse.json(
+          { success: false, error: 'You can only select the default template for your church' },
+          { status: 403 }
+        );
+      }
+      // Clerk can only change isDefault, nothing else
+      if (isDefault === undefined) {
+        return NextResponse.json(
+          { success: false, error: 'Church clerks can only select which template is active' },
+          { status: 403 }
+        );
+      }
+      // Clerk cannot unset the default (must select another instead)
+      if (!isDefault) {
+        return NextResponse.json(
+          { success: false, error: 'Select another template as default instead of unsetting' },
+          { status: 400 }
+        );
+      }
+    }
+
     // System templates can only be updated by Conference Admin+
-    if (template.isSystem) {
+    if (template.isSystem && session.role !== Role.CHURCH_CLERK) {
       if (
         session.role !== Role.GENERAL_CONFERENCE_ADMIN &&
         session.role !== Role.DIVISION_ADMIN &&
@@ -92,46 +128,40 @@ export async function PATCH(
         session.role !== Role.CONFERENCE_ADMIN
       ) {
         return NextResponse.json(
-          { success: false, error: 'Only Conference Admins or higher can update system templates' },
+          { success: false, error: 'Only system administrators can update templates' },
           { status: 403 }
         );
       }
-    } else if (template.churchId) {
-      // Church template - only creator's church or admin
-      const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
-      if (churchLevelRoles.includes(session.role)) {
-        if (template.churchId !== session.churchId) {
-          return NextResponse.json(
-            { success: false, error: 'You can only update templates for your church' },
-            { status: 403 }
-          );
-        }
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (session.role === Role.CHURCH_CLERK) {
+      // Clerk can only set isDefault
+      updateData.isDefault = true;
+    } else {
+      // System admins can update all fields
+      const { name, description, config, previewData } = body;
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (config !== undefined) updateData.config = typeof config === 'string' ? config : JSON.stringify(config);
+      if (previewData !== undefined) updateData.previewData = previewData;
+      if (isDefault !== undefined) {
+        updateData.isDefault = isDefault;
       }
     }
 
-    const body = await request.json();
-    const { name, description, config, previewData, isDefault } = body;
-
-    const updateData: Record<string, unknown> = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (config !== undefined) updateData.config = typeof config === 'string' ? config : JSON.stringify(config);
-    if (previewData !== undefined) updateData.previewData = previewData;
-    if (isDefault !== undefined) {
-      updateData.isDefault = isDefault;
-      // If setting as default, unset other defaults for the same church
-      if (isDefault) {
-        if (template.isSystem) {
-          await db.certificateTemplate.updateMany({
-            where: { isSystem: true, churchId: null, id: { not: id } },
-            data: { isDefault: false },
-          });
-        } else if (template.churchId) {
-          await db.certificateTemplate.updateMany({
-            where: { churchId: template.churchId, id: { not: id } },
-            data: { isDefault: false },
-          });
-        }
+    if (isDefault) {
+      if (template.isSystem) {
+        await db.certificateTemplate.updateMany({
+          where: { isSystem: true, churchId: null, id: { not: id } },
+          data: { isDefault: false },
+        });
+      } else if (template.churchId) {
+        await db.certificateTemplate.updateMany({
+          where: { churchId: template.churchId, id: { not: id } },
+          data: { isDefault: false },
+        });
       }
     }
 

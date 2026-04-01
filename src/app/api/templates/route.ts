@@ -108,27 +108,31 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: {
       churchId?: string | null;
-      OR?: Array<{ isSystem: boolean; churchId?: string | null }>;
+      OR?: Array<{ isSystem: boolean; churchId?: string | null; isDefault?: boolean }>;
     } = {};
 
-    if (churchId) {
+    // Pastors can only see the active default template for their church
+    if (session.role === Role.CHURCH_PASTOR) {
+      where.OR = [
+        { isSystem: true, isDefault: true, churchId: null },
+        { churchId: session.churchId, isDefault: true },
+      ];
+    } else if (churchId) {
       where.OR = [
         { isSystem: true, churchId: null },
         { churchId },
       ];
+    } else if (session.churchId) {
+      // Church Clerks see system + their church templates
+      where.OR = [
+        { isSystem: true, churchId: null },
+        { churchId: session.churchId },
+      ];
     } else {
-      // Show system templates + church-specific templates
-      if (session.churchId) {
-        where.OR = [
-          { isSystem: true, churchId: null },
-          { churchId: session.churchId },
-        ];
-      } else {
-        // Admin users see all
-        where.OR = [
-          { isSystem: true, churchId: null },
-        ];
-      }
+      // System admins see all
+      where.OR = [
+        { isSystem: true, churchId: null },
+      ];
     }
 
     const templates = await db.certificateTemplate.findMany({
@@ -154,7 +158,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create custom template
+// POST - Create custom template (System Admins only: CONFERENCE_ADMIN+)
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -166,35 +170,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Only Conference Admin and higher can create templates
+    if (
+      session.role !== Role.GENERAL_CONFERENCE_ADMIN &&
+      session.role !== Role.DIVISION_ADMIN &&
+      session.role !== Role.UNION_ADMIN &&
+      session.role !== Role.CONFERENCE_ADMIN
+    ) {
+      return NextResponse.json(
+        { success: false, error: 'Only system administrators can create templates' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const validatedData = templateSchema.parse(body);
-
-    // Check permissions for system templates
-    if (!validatedData.churchId) {
-      // System template - requires Conference Admin or higher
-      if (
-        session.role !== Role.GENERAL_CONFERENCE_ADMIN &&
-        session.role !== Role.DIVISION_ADMIN &&
-        session.role !== Role.UNION_ADMIN &&
-        session.role !== Role.CONFERENCE_ADMIN
-      ) {
-        return NextResponse.json(
-          { success: false, error: 'Only Conference Admins or higher can create system templates' },
-          { status: 403 }
-        );
-      }
-    } else {
-      // Church template - verify user has access
-      const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
-      if (churchLevelRoles.includes(session.role)) {
-        if (validatedData.churchId !== session.churchId) {
-          return NextResponse.json(
-            { success: false, error: 'You can only create templates for your church' },
-            { status: 403 }
-          );
-        }
-      }
-    }
 
     // Verify church exists if churchId provided
     if (validatedData.churchId) {

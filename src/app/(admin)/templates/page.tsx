@@ -22,7 +22,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -44,10 +43,14 @@ import {
   Loader2,
   Church,
   Globe,
+  Check,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
+import { Role } from '@prisma/client';
 
 interface TemplateConfig {
-  layout: 'classic' | 'modern' | 'elegant' | 'minimal';
+  layout: 'classic' | 'modern' | 'elegant' | 'minimal' | 'sda';
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
@@ -84,6 +87,7 @@ interface Church {
 }
 
 const LAYOUTS = [
+  { value: 'sda', label: 'SDA Premium', description: 'Ornate borders, cross & dove design' },
   { value: 'classic', label: 'Classic', description: 'Traditional design with ornate borders' },
   { value: 'modern', label: 'Modern', description: 'Clean, minimal design with sans-serif fonts' },
   { value: 'elegant', label: 'Elegant', description: 'Decorative borders with serif fonts' },
@@ -97,17 +101,25 @@ const FONTS = [
 ];
 
 const DEFAULT_CONFIG: TemplateConfig = {
-  layout: 'classic',
+  layout: 'sda',
   primaryColor: '#1a365d',
   secondaryColor: '#2d5a87',
   accentColor: '#b8860b',
-  fontFamily: 'helvetica',
-  fontSize: { title: 28, subtitle: 12, body: 14, small: 10 },
-  borderWidth: 3,
+  fontFamily: 'times',
+  fontSize: { title: 32, subtitle: 13, body: 13, small: 9 },
+  borderWidth: 2.5,
   borderRadius: 0,
   showLogo: true,
   showQRCode: true,
 };
+
+// Role hierarchy for permission checks
+const ADMIN_ROLES: Role[] = [
+  Role.GENERAL_CONFERENCE_ADMIN,
+  Role.DIVISION_ADMIN,
+  Role.UNION_ADMIN,
+  Role.CONFERENCE_ADMIN,
+];
 
 export default function TemplatesPage() {
   const { user } = useAuthStore();
@@ -121,20 +133,25 @@ export default function TemplatesPage() {
   const [deletingTemplate, setDeletingTemplate] = useState<Template | null>(null);
   const [viewingTemplate, setViewingTemplate] = useState<Template | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [selectingDefault, setSelectingDefault] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '',
     description: '',
     churchId: '',
-    layout: 'classic' as TemplateConfig['layout'],
+    layout: 'sda' as TemplateConfig['layout'],
     primaryColor: '#1a365d',
     secondaryColor: '#2d5a87',
     accentColor: '#b8860b',
-    fontFamily: 'helvetica',
-    borderWidth: 3,
+    fontFamily: 'times',
+    borderWidth: 2.5,
     borderRadius: 0,
     showLogo: true,
     showQRCode: true,
   });
+
+  const isAdmin = user?.role ? ADMIN_ROLES.includes(user.role) : false;
+  const isClerk = user?.role === Role.CHURCH_CLERK;
+  const isPastor = user?.role === Role.CHURCH_PASTOR;
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -169,12 +186,12 @@ export default function TemplatesPage() {
       name: '',
       description: '',
       churchId: '',
-      layout: 'classic',
+      layout: 'sda',
       primaryColor: '#1a365d',
       secondaryColor: '#2d5a87',
       accentColor: '#b8860b',
-      fontFamily: 'helvetica',
-      borderWidth: 3,
+      fontFamily: 'times',
+      borderWidth: 2.5,
       borderRadius: 0,
       showLogo: true,
       showQRCode: true,
@@ -238,11 +255,6 @@ export default function TemplatesPage() {
         config,
       };
 
-      if (editingTemplate) {
-        // For PATCH, only send changed fields
-        // All fields are sent for simplicity
-      }
-
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -284,6 +296,7 @@ export default function TemplatesPage() {
   };
 
   const handleSetDefault = async (template: Template) => {
+    setSelectingDefault(template.id);
     try {
       const res = await fetch(`/api/templates/${template.id}`, {
         method: 'PATCH',
@@ -297,11 +310,18 @@ export default function TemplatesPage() {
       }
     } catch (error) {
       console.error('Error setting default:', error);
+    } finally {
+      setSelectingDefault(null);
     }
   };
 
   const getLayoutPreviewStyle = (config: TemplateConfig) => {
     const layoutStyles: Record<string, React.CSSProperties> = {
+      sda: {
+        border: `2.5px solid ${config.primaryColor}`,
+        borderColor: config.primaryColor,
+        position: 'relative',
+      },
       classic: {
         border: `${config.borderWidth}px solid ${config.primaryColor}`,
         borderColor: config.primaryColor,
@@ -320,7 +340,7 @@ export default function TemplatesPage() {
         borderBottom: `2px solid ${config.primaryColor}`,
       },
     };
-    return layoutStyles[config.layout] || layoutStyles.classic;
+    return layoutStyles[config.layout] || layoutStyles.sda;
   };
 
   const parseConfig = (configStr: string): TemplateConfig => {
@@ -331,6 +351,424 @@ export default function TemplatesPage() {
     }
   };
 
+  // ── PASTOR VIEW: Read-only, only shows default template ──
+  if (isPastor) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Palette className="h-7 w-7 text-emerald-600" />
+              Certificate Template
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Your church&apos;s active certificate design
+            </p>
+          </div>
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <Lock className="h-3 w-3" />
+            View Only
+          </Badge>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
+          </div>
+        ) : templates.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Palette className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No Default Template Set</h3>
+              <p className="text-gray-500">
+                Your church clerk needs to select a default template. Contact them to set one up.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="max-w-lg mx-auto">
+            {templates.map((template) => {
+              const config = parseConfig(template.config);
+              return (
+                <Card key={template.id} className="overflow-hidden">
+                  <div
+                    className="aspect-[210/297] bg-white relative overflow-hidden"
+                    style={getLayoutPreviewStyle(config)}
+                  >
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                      <div
+                        className="w-8 h-8 rounded mb-2"
+                        style={{ backgroundColor: config.primaryColor }}
+                      />
+                      <div
+                        className="w-32 h-3 rounded mb-1"
+                        style={{ backgroundColor: config.primaryColor }}
+                      />
+                      <div
+                        className="w-20 h-1 rounded mb-4"
+                        style={{ backgroundColor: config.accentColor }}
+                      />
+                      <div className="w-40 h-2 rounded mb-1 bg-gray-200" />
+                      <div
+                        className="w-24 h-4 rounded mb-3"
+                        style={{ backgroundColor: config.secondaryColor, opacity: 0.3 }}
+                      />
+                      <div className="w-48 h-2 rounded mb-1 bg-gray-200" />
+                      <div className="w-36 h-2 rounded mb-6 bg-gray-200" />
+                      <div className="w-32 h-2 rounded bg-gray-200" />
+                      {config.showQRCode && (
+                        <div
+                          className="w-8 h-8 rounded mt-4 border"
+                          style={{ borderColor: config.secondaryColor }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{template.name}</CardTitle>
+                      <Badge className="bg-emerald-100 text-emerald-800">
+                        <Star className="h-3 w-3 mr-1" />
+                        Active
+                      </Badge>
+                    </div>
+                    <CardDescription>{template.description || 'Default certificate template'}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Layout:</span>{' '}
+                        <span className="font-medium capitalize">{config.layout}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Font:</span>{' '}
+                        <span className="font-medium capitalize">{config.fontFamily}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500">Primary:</span>
+                        <div
+                          className="w-4 h-4 rounded border"
+                          style={{ backgroundColor: config.primaryColor }}
+                        />
+                        <span className="font-mono text-xs">{config.primaryColor}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-500">Secondary:</span>
+                        <div
+                          className="w-4 h-4 rounded border"
+                          style={{ backgroundColor: config.secondaryColor }}
+                        />
+                        <span className="font-mono text-xs">{config.secondaryColor}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* View Template Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{viewingTemplate?.name}</DialogTitle>
+              <DialogDescription>{viewingTemplate?.description}</DialogDescription>
+            </DialogHeader>
+            {viewingTemplate && (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Badge variant={viewingTemplate.isSystem ? 'default' : 'secondary'}>
+                    {viewingTemplate.isSystem ? 'System' : 'Church'}
+                  </Badge>
+                  {viewingTemplate.isDefault && (
+                    <Badge className="bg-emerald-100 text-emerald-800">Default</Badge>
+                  )}
+                </div>
+                <div
+                  className="w-full aspect-[210/297] bg-white relative overflow-hidden"
+                  style={getLayoutPreviewStyle(parseConfig(viewingTemplate.config))}
+                >
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                    <div
+                      className="w-8 h-8 rounded mb-2"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).primaryColor }}
+                    />
+                    <div
+                      className="w-32 h-3 rounded mb-1"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).primaryColor }}
+                    />
+                    <div
+                      className="w-20 h-1 rounded mb-4"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).accentColor }}
+                    />
+                    <div className="w-40 h-2 rounded mb-1 bg-gray-200" />
+                    <div
+                      className="w-24 h-4 rounded mb-3"
+                      style={{
+                        backgroundColor: parseConfig(viewingTemplate.config).secondaryColor,
+                        opacity: 0.3,
+                      }}
+                    />
+                    <div className="w-48 h-2 rounded mb-1 bg-gray-200" />
+                    <div className="w-36 h-2 rounded mb-6 bg-gray-200" />
+                    <div className="w-32 h-2 rounded bg-gray-200" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // ── CHURCH CLERK VIEW: Can see + select default only ──
+  if (isClerk) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Palette className="h-7 w-7 text-emerald-600" />
+              Certificate Templates
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Select the default certificate template for your church
+            </p>
+          </div>
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <Star className="h-3 w-3" />
+            Clerk Access
+          </Badge>
+        </div>
+
+        {/* Info Banner */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3 flex items-start gap-3">
+            <ShieldCheck className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-900">Select Your Active Template</p>
+              <p className="text-xs text-blue-700 mt-0.5">
+                Choose one template from the available designs below as your church&apos;s default.
+                New baptism certificates will use the selected template. Only system administrators can create or modify templates.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
+          </div>
+        ) : templates.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Palette className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No Templates Available</h3>
+              <p className="text-gray-500">
+                No templates have been added yet. Contact your conference administrator to set up certificate templates.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templates.map((template) => {
+              const config = parseConfig(template.config);
+              const isCurrentlyDefault = template.isDefault;
+              return (
+                <Card
+                  key={template.id}
+                  className={`overflow-hidden transition-all ${
+                    isCurrentlyDefault
+                      ? 'ring-2 ring-emerald-600 shadow-md'
+                      : 'hover:shadow-sm'
+                  }`}
+                >
+                  {/* Preview */}
+                  <div
+                    className="aspect-[210/148] bg-white relative overflow-hidden cursor-pointer"
+                    style={getLayoutPreviewStyle(config)}
+                    onClick={() => {
+                      setViewingTemplate(template);
+                      setViewDialogOpen(true);
+                    }}
+                  >
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
+                      <div
+                        className="w-6 h-6 rounded mb-2"
+                        style={{ backgroundColor: config.primaryColor }}
+                      />
+                      <div
+                        className="w-24 h-2 rounded mb-1"
+                        style={{ backgroundColor: config.primaryColor }}
+                      />
+                      <div
+                        className="w-16 h-1 rounded mb-3"
+                        style={{ backgroundColor: config.accentColor }}
+                      />
+                      <div className="w-32 h-1.5 rounded mb-1 bg-gray-200" />
+                      <div
+                        className="w-20 h-3 rounded mb-2"
+                        style={{ backgroundColor: config.secondaryColor, opacity: 0.3 }}
+                      />
+                      <div className="w-36 h-1.5 rounded mb-1 bg-gray-200" />
+                      <div className="w-28 h-1.5 rounded bg-gray-200" />
+                    </div>
+                    {/* Default badge overlay */}
+                    {isCurrentlyDefault && (
+                      <div className="absolute top-2 right-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                        <Star className="h-3 w-3" />
+                        Active
+                      </div>
+                    )}
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/5 transition-colors flex items-center justify-center">
+                      <Eye className="h-5 w-5 text-white opacity-0 hover:opacity-70 transition-opacity" />
+                    </div>
+                  </div>
+
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-sm truncate">{template.name}</CardTitle>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {template.isSystem ? (
+                            <Badge variant="secondary" className="text-xs">
+                              <Globe className="h-3 w-3 mr-1" />
+                              System
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              <Church className="h-3 w-3 mr-1" />
+                              {template.church?.name || 'Church'}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pt-0 pb-4">
+                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">
+                      {template.description || 'No description'}
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSetDefault(template)}
+                      disabled={isCurrentlyDefault || selectingDefault === template.id}
+                      className={`w-full ${
+                        isCurrentlyDefault
+                          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 cursor-default'
+                          : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
+                    >
+                      {selectingDefault === template.id ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : isCurrentlyDefault ? (
+                        <Check className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Star className="h-4 w-4 mr-2" />
+                      )}
+                      {isCurrentlyDefault ? 'Currently Active' : 'Set as Active Template'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* View Template Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{viewingTemplate?.name}</DialogTitle>
+              <DialogDescription>{viewingTemplate?.description}</DialogDescription>
+            </DialogHeader>
+            {viewingTemplate && (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Badge variant={viewingTemplate.isSystem ? 'default' : 'secondary'}>
+                    {viewingTemplate.isSystem ? 'System' : 'Church'}
+                  </Badge>
+                  {viewingTemplate.isDefault && (
+                    <Badge className="bg-emerald-100 text-emerald-800">Active</Badge>
+                  )}
+                </div>
+                <div
+                  className="w-full aspect-[210/297] bg-white relative overflow-hidden"
+                  style={getLayoutPreviewStyle(parseConfig(viewingTemplate.config))}
+                >
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                    <div
+                      className="w-8 h-8 rounded mb-2"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).primaryColor }}
+                    />
+                    <div
+                      className="w-32 h-3 rounded mb-1"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).primaryColor }}
+                    />
+                    <div
+                      className="w-20 h-1 rounded mb-4"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).accentColor }}
+                    />
+                    <div className="w-40 h-2 rounded mb-1 bg-gray-200" />
+                    <div
+                      className="w-24 h-4 rounded mb-3"
+                      style={{
+                        backgroundColor: parseConfig(viewingTemplate.config).secondaryColor,
+                        opacity: 0.3,
+                      }}
+                    />
+                    <div className="w-48 h-2 rounded mb-1 bg-gray-200" />
+                    <div className="w-36 h-2 rounded mb-6 bg-gray-200" />
+                    <div className="w-32 h-2 rounded bg-gray-200" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-gray-500">Layout:</span>{' '}
+                    <span className="font-medium capitalize">
+                      {parseConfig(viewingTemplate.config).layout}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Font:</span>{' '}
+                    <span className="font-medium capitalize">
+                      {parseConfig(viewingTemplate.config).fontFamily}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-500">Primary:</span>
+                    <div
+                      className="w-4 h-4 rounded border"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).primaryColor }}
+                    />
+                    <span className="font-mono text-xs">
+                      {parseConfig(viewingTemplate.config).primaryColor}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-500">Secondary:</span>
+                    <div
+                      className="w-4 h-4 rounded border"
+                      style={{ backgroundColor: parseConfig(viewingTemplate.config).secondaryColor }}
+                    />
+                    <span className="font-mono text-xs">
+                      {parseConfig(viewingTemplate.config).secondaryColor}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // ── SYSTEM ADMIN VIEW: Full CRUD ──
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -345,12 +783,12 @@ export default function TemplatesPage() {
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
+          <Dialog>
             <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={openCreateDialog}>
               <Plus className="h-4 w-4 mr-2" />
               Create Template
             </Button>
-          </DialogTrigger>
+          </Dialog>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingTemplate ? 'Edit Template' : 'Create Template'}</DialogTitle>
