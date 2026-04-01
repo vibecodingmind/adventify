@@ -1,0 +1,18 @@
+[phases.setup]
+nixPkgs = ["...", "postgresql"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"
+
+[deploy]
+startCommand = "npx prisma db push --accept-data-loss 2>/dev/null || true && npm start"
+healthcheckPath = "/api/auth/login"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "npx prisma generate && next build",
+    "build": "node scripts/prebuild.mjs && npx prisma generate && next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "eslint .",
     "db:push": "npx prisma db push",
-    "db:migrate": "npx prisma migrate deploy"
+    "db:migrate": "npx prisma migrate deploy",
+    "postdeploy": "npx prisma db push --accept-data-loss 2>/dev/null; curl -s -X POST http://localhost:${PORT:-3000}/api/seed || true"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

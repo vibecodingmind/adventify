@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  serverExternalPackages: ['bcryptjs', 'jsonwebtoken', 'qrcode'],
+  serverExternalPackages: ['bcryptjs', 'jsonwebtoken', 'qrcode', 'nodemailer'],
 };
 
 export default nextConfig;

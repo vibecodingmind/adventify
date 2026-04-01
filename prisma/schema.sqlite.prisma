@@ -1,0 +1,319 @@
+// ADVENTIFY - Global Baptism Certificate Platform
+// Prisma Schema for Seventh-day Adventist Church Hierarchy
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Roles - Church Hierarchy
+enum Role {
+  GENERAL_CONFERENCE_ADMIN
+  DIVISION_ADMIN
+  UNION_ADMIN
+  CONFERENCE_ADMIN
+  CHURCH_PASTOR
+  CHURCH_CLERK
+  MEMBER
+}
+
+// Baptism Record Status
+enum BaptismStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Notification Type
+enum NotificationType {
+  SMS
+  WHATSAPP
+  EMAIL
+  IN_APP
+}
+
+// Notification Status
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// Batch Job Status
+enum BatchJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIALLY_COMPLETED
+}
+
+// Users table - Authentication and Authorization
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  phone        String?
+  preferredLanguage String @default("en")
+
+  // Foreign keys for role-specific access
+  divisionId   String?
+  unionId      String?
+  conferenceId String?
+  churchId     String?
+  personId     String? @unique
+
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  division    Division?   @relation(fields: [divisionId], references: [id])
+  union       Union?      @relation(fields: [unionId], references: [id])
+  conference  Conference? @relation(fields: [conferenceId], references: [id])
+  church      Church?     @relation(fields: [churchId], references: [id])
+  person      Person?     @relation(fields: [personId], references: [id])
+  auditLogs   AuditLog[]
+  notifications Notification[] @relation("UserNotifications")
+  sentNotifications Notification[] @relation("SentByUser")
+  batchJobs   BatchJob[] @relation("BatchCreator")
+}
+
+// Division - Highest organizational unit
+model Division {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  headquarters  String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  unions  Union[]
+  users   User[]
+}
+
+// Union - Regional organization under Division
+model Union {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  divisionId    String
+  headquarters  String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  division    Division     @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  conferences Conference[]
+  users       User[]
+}
+
+// Conference - Local conference under Union
+model Conference {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  unionId       String
+  headquarters  String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  union    Union    @relation(fields: [unionId], references: [id], onDelete: Cascade)
+  churches Church[]
+  users    User[]
+}
+
+// Church - Local church under Conference
+model Church {
+  id           String   @id @default(cuid())
+  code         String
+  name         String
+  conferenceId String
+  address      String?
+  city         String?
+  state        String?
+  country      String?
+  postalCode   String?
+  phone        String?
+  email        String?
+  // Branding
+  logo         String?
+  primaryColor String  @default("#1a365d")
+  secondaryColor String @default("#2d5a87")
+  website      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conference     Conference     @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  persons        Person[]
+  baptismRecords BaptismRecord[]
+  users          User[]
+  certificateTemplates CertificateTemplate[]
+
+  @@unique([code, conferenceId])
+}
+
+// Person - Minimal identity system
+model Person {
+  id          String    @id @default(cuid())
+  pid         String    @unique
+  fullName    String
+  dateOfBirth DateTime?
+  gender      String?
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  country     String?
+  churchId    String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  church       Church?       @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  baptismRecord BaptismRecord?
+  user         User?
+}
+
+// Baptism Record - Core baptism information
+model BaptismRecord {
+  id              String        @id @default(cuid())
+  personId        String        @unique
+  churchId        String
+  baptismDate     DateTime
+  baptismLocation String?
+  pastorName      String
+  pastorTitle     String?
+  witnessName     String?
+  status          BaptismStatus @default(PENDING)
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  person      Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  church      Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  certificate Certificate?
+}
+
+// Certificate Template - Custom certificate designs
+model CertificateTemplate {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  churchId      String?
+  // Template configuration stored as JSON
+  config        String   // JSON string with template layout, colors, fonts, etc.
+  previewData   String?  // Base64 encoded preview image
+  isDefault     Boolean  @default(false)
+  isSystem      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  church      Church?      @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  certificates Certificate[]
+}
+
+// Certificate - Generated baptism certificate
+model Certificate {
+  id               String   @id @default(cuid())
+  bcn              String   @unique
+  baptismRecordId  String   @unique
+  certificateDate  DateTime @default(now())
+  pdfData          String?
+  qrCodeData       String?
+  verificationUrl  String
+  templateId       String?
+  language         String   @default("en")
+  // Revocation fields
+  isRevoked        Boolean  @default(false)
+  revokedAt        DateTime?
+  revokedBy        String?
+  revocationReason String?
+  printedAt        DateTime?
+  downloadedAt     DateTime?
+  emailedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  baptismRecord BaptismRecord      @relation(fields: [baptismRecordId], references: [id], onDelete: Cascade)
+  template      CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+}
+
+// Notification - Track all notifications
+model Notification {
+  id          String             @id @default(cuid())
+  userId      String
+  sentById    String?
+  type        NotificationType
+  channel     String             // sms, whatsapp, email, in_app
+  title       String
+  message     String
+  status      NotificationStatus @default(PENDING)
+  recipient   String?            // Phone number or email
+  metadata    String?            // JSON string for additional data
+  error       String?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime           @default(now())
+
+  user    User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  sentBy  User? @relation("SentByUser", fields: [sentById], references: [id], onDelete: SetNull)
+}
+
+// Batch Job - Track batch operations
+model BatchJob {
+  id              String          @id @default(cuid())
+  type            String          // baptize, certificate, email
+  status          BatchJobStatus  @default(PENDING)
+  totalItems      Int             @default(0)
+  processedItems  Int             @default(0)
+  failedItems     Int             @default(0)
+  config          String?         // JSON string with batch configuration
+  result          String?         // JSON string with results
+  error           String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdBy       String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  creator User @relation("BatchCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+}
+
+// Audit Log - Track all system actions
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entity     String
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// System Settings - Application configuration
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
