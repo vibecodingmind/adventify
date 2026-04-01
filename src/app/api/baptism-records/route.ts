@@ -152,6 +152,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = baptismRecordSchema.parse(body);
     
+    // Validate: baptism date must not be in the future
+    const baptismDate = new Date(validatedData.baptismDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (baptismDate > today) {
+      return NextResponse.json(
+        { success: false, error: 'Baptism date cannot be in the future' },
+        { status: 400 }
+      );
+    }
+    
     // Church-level users can only create records for their church
     const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
     if (churchLevelRoles.includes(session.role)) {
@@ -181,6 +192,18 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'This person already has a baptism record' },
         { status: 400 }
       );
+    }
+    
+    // Validate: person must be old enough for baptism (minimum 12 years old)
+    if (person.dateOfBirth) {
+      const ageMs = baptismDate.getTime() - person.dateOfBirth.getTime();
+      const ageYears = ageMs / (365.25 * 24 * 60 * 60 * 1000);
+      if (ageYears < 12) {
+        return NextResponse.json(
+          { success: false, error: 'Person must be at least 12 years old to be baptized. Children cannot be baptized in this church.' },
+          { status: 400 }
+        );
+      }
     }
     
     // Verify church exists

@@ -170,6 +170,19 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Validate: date of birth must not be in the future
+    if (validatedData.dateOfBirth) {
+      const dob = new Date(validatedData.dateOfBirth);
+      const now = new Date();
+      now.setHours(23, 59, 59, 999);
+      if (dob > now) {
+        return NextResponse.json(
+          { success: false, error: 'Date of birth cannot be in the future' },
+          { status: 400 }
+        );
+      }
+    }
+    
     // Generate unique PID
     const pid = generatePID();
     

@@ -574,6 +574,7 @@ export default function PersonsPage() {
       ) : (
         <Input
           type={type}
+          max={type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
           {...form.register(name)}
           placeholder={placeholder}
         />

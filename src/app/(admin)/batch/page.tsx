@@ -414,6 +414,7 @@ export default function BatchPage() {
                   <Label htmlFor="baptismDate">Baptism Date *</Label>
                   <Input
                     type="date"
+                    max={new Date().toISOString().split('T')[0]}
                     value={baptismForm.baptismDate}
                     onChange={(e) => setBaptismForm({ ...baptismForm, baptismDate: e.target.value })}
                   />

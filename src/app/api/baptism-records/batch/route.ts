@@ -42,6 +42,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = batchRequestSchema.parse(body);
 
+    // Validate: baptism dates must not be in the future
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    for (const record of validatedData.records) {
+      const recordDate = new Date(record.baptismDate);
+      if (recordDate > today) {
+        return NextResponse.json(
+          { success: false, error: `Baptism date cannot be in the future` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create batch job
     const batchJob = await db.batchJob.create({
       data: {
@@ -92,6 +105,16 @@ export async function POST(request: NextRequest) {
 
         if (person.baptismRecord) {
           throw new Error('This person already has a baptism record');
+        }
+
+        // Validate: person must be old enough for baptism (minimum 12 years old)
+        if (person.dateOfBirth) {
+          const batchBaptismDate = new Date(record.baptismDate);
+          const ageMs = batchBaptismDate.getTime() - person.dateOfBirth.getTime();
+          const ageYears = ageMs / (365.25 * 24 * 60 * 60 * 1000);
+          if (ageYears < 12) {
+            throw new Error('Person must be at least 12 years old to be baptized');
+          }
         }
 
         // Verify church exists

@@ -627,7 +627,7 @@ export default function BaptismRecordsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Baptism Date *</label>
-                <Input type="date" {...createForm.register('baptismDate')} />
+                <Input type="date" max={new Date().toISOString().split('T')[0]} {...createForm.register('baptismDate')} />
               </div>
               <div>
                 <label className="text-sm font-medium">Location</label>
@@ -679,7 +679,7 @@ export default function BaptismRecordsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Baptism Date *</label>
-                <Input type="date" {...editForm.register('baptismDate')} />
+                <Input type="date" max={new Date().toISOString().split('T')[0]} {...editForm.register('baptismDate')} />
                 {editForm.formState.errors.baptismDate && (
                   <p className="text-red-500 text-xs mt-1">{editForm.formState.errors.baptismDate.message}</p>
                 )}
