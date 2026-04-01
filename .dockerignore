@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env
+.env.local
+.env.production
+db/
+download/
+.zscripts/
+Dockerfile
+docker-compose*
+*.log
+.vscode
+.idea

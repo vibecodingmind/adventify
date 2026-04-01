@@ -31,24 +31,34 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
+.env.production
 
 # vercel
 .vercel
-
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 local-*
-.claude
-.z-ai-config
+
+# Dev artifacts
 *.log
 dev.log
 dev.out.log
+server.log
+.claude
+.z-ai-config
 test
 prompt
 
-server.log
 # Skills directory
 /skills/
+
+# Z-scripts (dev environment only)
+.zscripts/
+
+# Database files (use PostgreSQL on Railway)
+db/*.db
+db/*.db-journal

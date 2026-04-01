@@ -1,0 +1,14 @@
+# Railway deployment configuration for Adventify
+
+[phases.setup]
+nixPkgs = ["...", "postgresql"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[phases.start]
+cmds = ["npx prisma migrate deploy && npm run start"]
+
+[variables]
+NODE_ENV = "production"
+NPM_FLAGS = "--legacy-peer-deps"
