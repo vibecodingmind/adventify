@@ -4,6 +4,8 @@ import { hashPassword } from '@/lib/password';
 import { Role, BaptismStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { execSync } from 'child_process';
+import { existsSync, copyFileSync, readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 
 // Generate unique Person ID
 function generatePID(): string {
@@ -12,9 +14,34 @@ function generatePID(): string {
   return `PID-${timestamp}-${random}`;
 }
 
+// Ensure schema matches the database provider
+function ensureCorrectSchema() {
+  const dbUrl = process.env.DATABASE_URL || '';
+  const schemaPath = join(process.cwd(), 'prisma', 'schema.prisma');
+  const pgSchemaPath = join(process.cwd(), 'prisma', 'schema.postgresql.prisma');
+
+  try {
+    const currentSchema = readFileSync(schemaPath, 'utf-8');
+    const isCurrentPG = currentSchema.includes('provider = "postgresql"');
+    const isDBPostgres = dbUrl.includes('postgres');
+
+    if (isDBPostgres && !isCurrentPG && existsSync(pgSchemaPath)) {
+      console.log('[seed] Swapping to PostgreSQL schema...');
+      copyFileSync(pgSchemaPath, schemaPath);
+      // Regenerate client with correct schema
+      execSync('npx prisma generate --skip-generate 2>&1 || npx prisma generate 2>&1', { timeout: 60000 });
+    }
+  } catch (e) {
+    console.error('[seed] Schema swap error:', e);
+  }
+}
+
 // POST - Seed database with sample data
 export async function POST() {
   try {
+    // Ensure schema matches database provider
+    ensureCorrectSchema();
+
     // Auto-create database tables if they don't exist
     try {
       execSync('npx prisma db push --skip-generate --accept-data-loss 2>&1', { timeout: 30000 });

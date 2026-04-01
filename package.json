@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "node scripts/prebuild.mjs && npx prisma generate && next build",
-    "start": "next start -p ${PORT:-3000}",
+    "build": "node -e \"const fs=require('fs');if((process.env.DATABASE_URL||'').includes('postgres')){console.log('Switching to PostgreSQL schema...');fs.copyFileSync('prisma/schema.postgresql.prisma','prisma/schema.prisma')}else{console.log('Using SQLite schema...')}\" && npx prisma generate && next build",
+    "start": "npx prisma db push --accept-data-loss 2>/dev/null || true && next start -p ${PORT:-3000}",
     "lint": "eslint .",
     "db:push": "npx prisma db push",
     "db:migrate": "npx prisma migrate deploy",
