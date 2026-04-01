@@ -15,7 +15,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client before build
 RUN npx prisma generate
 RUN npm run build
 
@@ -33,9 +32,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Prisma for runtime queries
+# Copy Prisma for runtime (db push + queries)
+COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 USER nextjs
 
@@ -44,5 +45,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the server (skip migrate - DB is managed externally)
-CMD ["sh", "-c", "node server.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss 2>/dev/null || npx prisma db push --skip-generate; node server.js"]
