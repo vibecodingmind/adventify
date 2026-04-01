@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { Role } from '@prisma/client';
-import ZAI from 'z-ai-web-dev-sdk';
+
+// AI SDK is only available in local sandbox - graceful degradation
+let ZAI: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ZAI = require('z-ai-web-dev-sdk').default;
+} catch {
+  // SDK not available in production
+}
 
 // POST - AI auto-fill form fields
 export async function POST(request: NextRequest) {
@@ -22,6 +30,15 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'partialData is required' },
         { status: 400 }
       );
+    }
+
+    // Check if AI SDK is available
+    if (!ZAI) {
+      return NextResponse.json({
+        success: false,
+        error: 'AI auto-fill is not available in this environment. This feature requires the z-ai-web-dev-sdk.',
+        code: 'AI_UNAVAILABLE',
+      });
     }
 
     const zai = await ZAI.create();
