@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
+import { notifyOnBaptismStatusChange } from '@/lib/notifications';
 import { Role, BaptismStatus } from '@prisma/client';
 import { z } from 'zod';
 
@@ -112,6 +113,18 @@ export async function POST(
       },
     });
     
+    // Send notification on status change (non-blocking)
+    try {
+      await notifyOnBaptismStatusChange(
+        id,
+        'REJECTED',
+        updatedRecord.person.fullName,
+        updatedRecord.church.name
+      );
+    } catch (notifError) {
+      console.error('Notification error (non-blocking):', notifError);
+    }
+
     // Create audit log
     await createAuditLog({
       userId: session.userId,

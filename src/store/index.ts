@@ -48,12 +48,24 @@ export const useAuthStore = create<AuthState>()(
 // UI State Store
 interface UIState {
   sidebarOpen: boolean;
+  language: string;
   setSidebarOpen: (open: boolean) => void;
+  setLanguage: (lang: string) => void;
   toggleSidebar: () => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  sidebarOpen: true,
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-}));
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      sidebarOpen: true,
+      language: 'en',
+      setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      setLanguage: (lang) => set({ language: lang }),
+      toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+    }),
+    {
+      name: 'adventify-ui',
+      partialize: (state) => ({ language: state.language }),
+    }
+  )
+);

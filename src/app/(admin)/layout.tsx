@@ -23,8 +23,14 @@ import {
   Building2,
   Shield,
   BarChart3,
+  Bell,
+  Ban,
+  FileBarChart,
+  Palette,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LanguageSelector } from '@/components/language-selector';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -32,7 +38,12 @@ const navigation = [
   { name: 'Persons', href: '/persons', icon: Users, minRole: Role.CHURCH_CLERK },
   { name: 'Baptism Records', href: '/baptism-records', icon: FileText, minRole: Role.CHURCH_CLERK },
   { name: 'Certificates', href: '/certificates', icon: Award, minRole: Role.CHURCH_CLERK },
+  { name: 'Templates', href: '/templates', icon: Palette, minRole: Role.CHURCH_CLERK },
+  { name: 'Batch Operations', href: '/batch', icon: Layers, minRole: Role.CHURCH_CLERK },
+  { name: 'Reports', href: '/reports', icon: FileBarChart, minRole: Role.CHURCH_CLERK },
+  { name: 'Revocations', href: '/revocations', icon: Ban, minRole: Role.CHURCH_PASTOR },
   { name: 'Users', href: '/users', icon: Shield, minRole: Role.CONFERENCE_ADMIN },
+  { name: 'Notifications', href: '/notifications', icon: Bell, minRole: Role.CHURCH_CLERK },
   { name: 'Audit Logs', href: '/audit-logs', icon: BarChart3, minRole: Role.CONFERENCE_ADMIN },
 ];
 
@@ -57,9 +68,10 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, token } = useAuthStore();
   const { sidebarOpen, setSidebarOpen } = useUIStore();
   const [hydrated, setHydrated] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Wait for hydration
   useEffect(() => {
@@ -67,6 +79,27 @@ export default function AdminLayout({
     const timer = setTimeout(() => setHydrated(true), 0);
     return () => clearTimeout(timer);
   }, []);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || !token) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch('/api/notifications?unread=true&limit=1', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setUnreadCount(data.data.unreadCount || 0);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [hydrated, isAuthenticated, token]);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
@@ -110,7 +143,7 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[0px]">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="flex items-center justify-between px-4 py-3">
@@ -133,11 +166,14 @@ export default function AdminLayout({
             </SheetContent>
           </Sheet>
           <h1 className="text-lg font-semibold text-emerald-700">ADVENTIFY</h1>
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-emerald-600 text-white text-xs">
-              {getInitials(user.fullName)}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-1">
+            <LanguageSelector />
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-emerald-600 text-white text-xs">
+                {getInitials(user.fullName)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </div>
       </header>
 
@@ -152,11 +188,16 @@ export default function AdminLayout({
             onLogout={handleLogout}
             getRoleLabel={getRoleLabel}
             getInitials={getInitials}
+            unreadCount={unreadCount}
           />
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 lg:pl-72">
+          {/* Desktop top bar */}
+          <div className="hidden lg:flex items-center justify-end px-8 py-3 bg-white border-b border-gray-200">
+            <LanguageSelector />
+          </div>
           <div className="p-4 lg:p-8">{children}</div>
         </main>
       </div>
@@ -172,6 +213,7 @@ function SidebarContent({
   onLogout,
   getRoleLabel,
   getInitials,
+  unreadCount,
 }: {
   user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']>;
   filteredNav: typeof navigation;
@@ -180,6 +222,7 @@ function SidebarContent({
   onLogout: () => void;
   getRoleLabel: (role: Role) => string;
   getInitials: (name: string) => string;
+  unreadCount?: number;
 }) {
   return (
     <div className="flex flex-col h-full">
@@ -198,6 +241,7 @@ function SidebarContent({
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
         {filteredNav.map((item) => {
           const isActive = pathname === item.href;
+          const isNotifications = item.href === '/notifications';
           return (
             <Link
               key={item.name}
@@ -211,7 +255,12 @@ function SidebarContent({
               )}
             >
               <item.icon className="h-5 w-5" />
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {isNotifications && unreadCount && unreadCount > 0 && (
+                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-emerald-600 text-white text-xs font-medium">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

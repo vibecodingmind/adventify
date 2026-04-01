@@ -62,3 +62,5 @@ prompt
 # Database files (use PostgreSQL on Railway)
 db/*.db
 db/*.db-journal
+db/custom.db
+.zscripts/dev.pid

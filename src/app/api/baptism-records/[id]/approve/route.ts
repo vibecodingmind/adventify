@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { createCertificate } from '@/lib/certificate';
+import { sendCertificateEmail } from '@/lib/email';
+import { notifyOnBaptismStatusChange } from '@/lib/notifications';
 import { Role, BaptismStatus } from '@prisma/client';
 
 // POST - Approve baptism record
@@ -29,10 +31,11 @@ export async function POST(
       );
     }
     
-    // Get the baptism record
+    // Get the baptism record with person email
     const baptismRecord = await db.baptismRecord.findUnique({
       where: { id },
       include: {
+        person: { select: { id: true, pid: true, fullName: true, email: true } },
         church: {
           include: {
             conference: {
@@ -115,6 +118,38 @@ export async function POST(
       certificate = await createCertificate(id, baseUrl);
     } catch (certError) {
       console.error('Auto-generate certificate error:', certError);
+    }
+
+    // Send email notification after certificate generation (non-blocking)
+    try {
+      if (certificate && baptismRecord.person.email) {
+        await sendCertificateEmail(
+          baptismRecord.person.email,
+          {
+            personName: baptismRecord.person.fullName,
+            bcn: certificate.bcn,
+            churchName: baptismRecord.church.name,
+            verificationUrl: certificate.verificationUrl,
+            pdfBase64: certificate.pdfData || undefined,
+          },
+          session.userId
+        );
+      }
+    } catch (emailError) {
+      // Email failure should not break the approval flow
+      console.error('Email notification error (non-blocking):', emailError);
+    }
+
+    // Send notification on status change (non-blocking)
+    try {
+      await notifyOnBaptismStatusChange(
+        id,
+        'APPROVED',
+        updatedRecord.person.fullName,
+        updatedRecord.church.name
+      );
+    } catch (notifError) {
+      console.error('Notification error (non-blocking):', notifError);
     }
 
     // Create audit log

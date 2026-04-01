@@ -18,6 +18,14 @@ const selfAuthRoutes = [
   '/api/auth/register',
   '/api/auth/logout',
   '/api/auth/me',
+  '/api/notifications',
+  '/api/email',
+  '/api/batch-jobs',
+  '/api/templates',
+  '/api/reports',
+  '/api/revocations',
+  '/api/search',
+  '/api/ai',
 ];
 
 export default function middleware(req: NextRequest) {
