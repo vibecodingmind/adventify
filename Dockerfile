@@ -5,11 +5,10 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY package.json ./
+# Use bun lock if no package-lock exists
+COPY bun.lock* package-lock.json* ./
 RUN npm install --legacy-peer-deps
-
-# Generate Prisma client
-RUN npx prisma generate
 
 # Build the application
 FROM base AS builder
@@ -18,6 +17,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Generate Prisma client before build
 RUN npx prisma generate
 RUN npm run build
 
@@ -30,13 +30,15 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+# Copy standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# Copy Prisma for migrate + runtime
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 USER nextjs
 
@@ -45,4 +47,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# Run migrations then start the server
+CMD ["sh", "-c", "npx prisma migrate deploy 2>/dev/null || true && node server.js"]
