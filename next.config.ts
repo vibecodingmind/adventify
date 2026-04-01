@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Ensure server external packages are bundled correctly
   serverExternalPackages: ['bcryptjs', 'jsonwebtoken', 'qrcode'],
 };
 

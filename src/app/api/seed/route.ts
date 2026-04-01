@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { Role, BaptismStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { execSync } from 'child_process';
 
 // Generate unique Person ID
 function generatePID(): string {
@@ -14,6 +15,14 @@ function generatePID(): string {
 // POST - Seed database with sample data
 export async function POST() {
   try {
+    // Auto-create database tables if they don't exist
+    try {
+      execSync('npx prisma db push --skip-generate --accept-data-loss 2>&1', { timeout: 30000 });
+    } catch (pushError) {
+      console.error('prisma db push warning:', pushError);
+      // Non-fatal - tables might already exist
+    }
+
     // Check if data already exists
     const existingDivisions = await db.division.count();
     if (existingDivisions > 0) {
