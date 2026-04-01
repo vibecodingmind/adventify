@@ -232,6 +232,26 @@ export async function POST() {
       },
     });
     
+    const churchClerk = await db.user.create({
+      data: {
+        email: 'church.clerk@adventify.org',
+        passwordHash,
+        fullName: 'London Central Church Clerk',
+        role: Role.CHURCH_CLERK,
+        churchId: churches[0].id,
+      },
+    });
+    
+    const churchPastor = await db.user.create({
+      data: {
+        email: 'church.pastor@adventify.org',
+        passwordHash,
+        fullName: 'Pastor James Wilson',
+        role: Role.CHURCH_PASTOR,
+        churchId: churches[0].id,
+      },
+    });
+    
     // Create Persons
     const persons = await Promise.all([
       db.person.create({
@@ -353,7 +373,7 @@ export async function POST() {
         unions: 3,
         conferences: 4,
         churches: churches.length,
-        users: 5,
+        users: 8,
         persons: persons.length,
         baptismRecords: baptismRecords.length,
         credentials: [
@@ -362,6 +382,8 @@ export async function POST() {
           { email: 'buc.admin@adventify.org', password: 'Password123', role: 'Union Admin (British)' },
           { email: 'sec.admin@adventify.org', password: 'Password123', role: 'Conference Admin (South England)' },
           { email: 'church.admin@adventify.org', password: 'Password123', role: 'Church Admin (London Central)' },
+          { email: 'church.clerk@adventify.org', password: 'Password123', role: 'Church Clerk (London Central)' },
+          { email: 'church.pastor@adventify.org', password: 'Password123', role: 'Church Pastor (London Central)' },
         ],
       },
     });

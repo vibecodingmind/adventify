@@ -130,11 +130,13 @@ interface Church {
 }
 
 const ROLE_HIERARCHY: Record<Role, number> = {
-  GENERAL_CONFERENCE_ADMIN: 5,
-  DIVISION_ADMIN: 4,
-  UNION_ADMIN: 3,
-  CONFERENCE_ADMIN: 2,
-  CHURCH_ADMIN: 1,
+  GENERAL_CONFERENCE_ADMIN: 7,
+  DIVISION_ADMIN: 6,
+  UNION_ADMIN: 5,
+  CONFERENCE_ADMIN: 4,
+  CHURCH_ADMIN: 3,
+  CHURCH_PASTOR: 2,
+  CHURCH_CLERK: 1,
   MEMBER: 0,
 };
 
@@ -156,6 +158,10 @@ function getRoleBadgeVariant(role: Role): string {
       return 'bg-teal-100 text-teal-800 border-teal-200';
     case Role.CHURCH_ADMIN:
       return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case Role.CHURCH_PASTOR:
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case Role.CHURCH_CLERK:
+      return 'bg-amber-100 text-amber-800 border-amber-200';
     case Role.MEMBER:
       return 'bg-gray-100 text-gray-700 border-gray-200';
     default:
@@ -856,6 +862,8 @@ export default function UsersPage() {
                   selectedRole === Role.UNION_ADMIN ||
                   selectedRole === Role.CONFERENCE_ADMIN ||
                   selectedRole === Role.CHURCH_ADMIN ||
+                  selectedRole === Role.CHURCH_PASTOR ||
+                  selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Division</label>
@@ -883,6 +891,8 @@ export default function UsersPage() {
                 {(selectedRole === Role.UNION_ADMIN ||
                   selectedRole === Role.CONFERENCE_ADMIN ||
                   selectedRole === Role.CHURCH_ADMIN ||
+                  selectedRole === Role.CHURCH_PASTOR ||
+                  selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) &&
                   selectedDivisionId && (
                     <div className="space-y-2">
@@ -907,6 +917,8 @@ export default function UsersPage() {
 
                 {(selectedRole === Role.CONFERENCE_ADMIN ||
                   selectedRole === Role.CHURCH_ADMIN ||
+                  selectedRole === Role.CHURCH_PASTOR ||
+                  selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) &&
                   selectedUnionId && (
                     <div className="space-y-2">
@@ -929,7 +941,10 @@ export default function UsersPage() {
                     </div>
                   )}
 
-                {(selectedRole === Role.CHURCH_ADMIN || selectedRole === Role.MEMBER) &&
+                {(selectedRole === Role.CHURCH_ADMIN ||
+                  selectedRole === Role.CHURCH_PASTOR ||
+                  selectedRole === Role.CHURCH_CLERK ||
+                  selectedRole === Role.MEMBER) &&
                   selectedConferenceId && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">Church</label>

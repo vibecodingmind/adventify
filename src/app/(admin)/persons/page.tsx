@@ -214,7 +214,7 @@ export default function PersonsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
-          churchId: user?.role === Role.CHURCH_ADMIN ? user.churchId : data.churchId,
+          churchId: user && churchLevelRoles.includes(user.role) ? user.churchId : data.churchId,
         }),
       });
       const result = await res.json();
@@ -305,7 +305,8 @@ export default function PersonsPage() {
     }
   };
 
-  const canEdit = user?.role !== Role.MEMBER;
+  const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+  const canEdit = user && !churchLevelRoles.includes(user.role) || user?.role === Role.CHURCH_ADMIN;
   const canDelete = user?.role === Role.GENERAL_CONFERENCE_ADMIN || user?.role === Role.DIVISION_ADMIN || user?.role === Role.CONFERENCE_ADMIN;
   const canCreate = user?.role !== Role.MEMBER;
 
@@ -382,7 +383,7 @@ export default function PersonsPage() {
                     />
                   </div>
                 </div>
-                {user?.role !== Role.CHURCH_ADMIN && churches.length > 0 && (
+                {user && !churchLevelRoles.includes(user.role) && churches.length > 0 && (
                   <div>
                     <label className="text-sm font-medium">Church</label>
                     <Select onValueChange={(v) => createForm.setValue('churchId', v)}>
@@ -615,7 +616,7 @@ export default function PersonsPage() {
                 />
               </div>
             </div>
-            {user?.role !== Role.CHURCH_ADMIN && churches.length > 0 && (
+            {user && !churchLevelRoles.includes(user.role) && churches.length > 0 && (
               <div>
                 <label className="text-sm font-medium">Church</label>
                 <Select

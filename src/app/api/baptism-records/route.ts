@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Apply scope filter
-    if (session.role === Role.CHURCH_ADMIN && session.churchId) {
+    if ((session.role === Role.CHURCH_ADMIN || session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
       where.churchId = session.churchId;
     } else if (session.role === Role.CONFERENCE_ADMIN && session.conferenceId) {
       const churches = await db.church.findMany({
@@ -141,10 +141,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Check permissions - Church Admin or higher
+    // Check permissions - Church Clerk or higher
     if (session.role === Role.MEMBER) {
       return NextResponse.json(
-        { success: false, error: 'Only Church Admins or higher can create baptism records' },
+        { success: false, error: 'Only Church Clerks or higher can create baptism records' },
         { status: 403 }
       );
     }
@@ -152,8 +152,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = baptismRecordSchema.parse(body);
     
-    // Church admin can only create records for their church
-    if (session.role === Role.CHURCH_ADMIN) {
+    // Church-level users can only create records for their church
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    if (churchLevelRoles.includes(session.role)) {
       if (validatedData.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only create baptism records for your church' },

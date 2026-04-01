@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     } = { baptismRecord: {} };
     
     // Apply scope filter
-    if (session.role === Role.CHURCH_ADMIN && session.churchId) {
+    if ((session.role === Role.CHURCH_ADMIN || session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
       where.baptismRecord.churchId = session.churchId;
     } else if (session.role === Role.CONFERENCE_ADMIN && session.conferenceId) {
       const churches = await db.church.findMany({
@@ -135,10 +135,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Check permissions - Church Admin or higher
+    // Check permissions - Church Clerk or higher
     if (session.role === Role.MEMBER) {
       return NextResponse.json(
-        { success: false, error: 'Only Church Admins or higher can generate certificates' },
+        { success: false, error: 'Only Church Clerks or higher can generate certificates' },
         { status: 403 }
       );
     }
@@ -172,7 +172,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Verify user has access
-    if (session.role === Role.CHURCH_ADMIN) {
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    if (churchLevelRoles.includes(session.role)) {
       if (baptismRecord.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only generate certificates for your church' },

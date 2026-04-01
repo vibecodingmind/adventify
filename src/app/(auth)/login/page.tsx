@@ -181,7 +181,8 @@ export default function LoginPage() {
               </p>
               <div className="space-y-2 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">
                 <p><strong>GC Admin:</strong> gc.admin@adventify.org</p>
-                <p><strong>Church Admin:</strong> church.admin@adventify.org</p>
+                <p><strong>Church Clerk:</strong> church.clerk@adventify.org</p>
+                <p><strong>Church Pastor:</strong> church.pastor@adventify.org</p>
                 <p><strong>Password:</strong> Password123</p>
               </div>
             </div>

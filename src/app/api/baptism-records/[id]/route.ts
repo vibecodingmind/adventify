@@ -93,10 +93,10 @@ export async function PATCH(
       );
     }
 
-    // CHURCH_ADMIN+ can edit (from PERMISSIONS)
+    // CHURCH_CLERK+ can edit (from PERMISSIONS)
     if (!canPerformAction(session, 'UPDATE_BAPTISM_RECORD')) {
       return NextResponse.json(
-        { success: false, error: 'Only Church Admins or higher can update baptism records' },
+        { success: false, error: 'Only Church Clerks or higher can update baptism records' },
         { status: 403 }
       );
     }
@@ -126,8 +126,9 @@ export async function PATCH(
       );
     }
 
-    // Scope check: church admin can only edit records in their church
-    if (session.role === Role.CHURCH_ADMIN) {
+    // Scope check: church-level users can only edit records in their church
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    if (churchLevelRoles.includes(session.role)) {
       if (existingRecord.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only edit baptism records for your church' },

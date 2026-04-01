@@ -29,19 +29,21 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Hierarchy', href: '/hierarchy', icon: Building2, minRole: Role.CONFERENCE_ADMIN },
-  { name: 'Persons', href: '/persons', icon: Users, minRole: Role.CHURCH_ADMIN },
-  { name: 'Baptism Records', href: '/baptism-records', icon: FileText, minRole: Role.CHURCH_ADMIN },
-  { name: 'Certificates', href: '/certificates', icon: Award, minRole: Role.CHURCH_ADMIN },
+  { name: 'Persons', href: '/persons', icon: Users, minRole: Role.CHURCH_CLERK },
+  { name: 'Baptism Records', href: '/baptism-records', icon: FileText, minRole: Role.CHURCH_CLERK },
+  { name: 'Certificates', href: '/certificates', icon: Award, minRole: Role.CHURCH_CLERK },
   { name: 'Users', href: '/users', icon: Shield, minRole: Role.CONFERENCE_ADMIN },
   { name: 'Audit Logs', href: '/audit-logs', icon: BarChart3, minRole: Role.CONFERENCE_ADMIN },
 ];
 
 const roleHierarchy: Record<Role, number> = {
-  GENERAL_CONFERENCE_ADMIN: 5,
-  DIVISION_ADMIN: 4,
-  UNION_ADMIN: 3,
-  CONFERENCE_ADMIN: 2,
-  CHURCH_ADMIN: 1,
+  GENERAL_CONFERENCE_ADMIN: 7,
+  DIVISION_ADMIN: 6,
+  UNION_ADMIN: 5,
+  CONFERENCE_ADMIN: 4,
+  CHURCH_ADMIN: 3,
+  CHURCH_PASTOR: 2,
+  CHURCH_CLERK: 1,
   MEMBER: 0,
 };
 

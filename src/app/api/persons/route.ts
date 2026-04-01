@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     } = {};
     
     // Apply scope filter
-    if (session.role === Role.CHURCH_ADMIN && session.churchId) {
+    if ((session.role === Role.CHURCH_ADMIN || session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
       where.churchId = session.churchId;
     } else if (session.role === Role.CONFERENCE_ADMIN && session.conferenceId) {
       // Get all churches in conference
@@ -134,10 +134,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Check permissions - Church Admin or higher
+    // Check permissions - Church Clerk or higher
     if (session.role === Role.MEMBER) {
       return NextResponse.json(
-        { success: false, error: 'Only Church Admins or higher can create persons' },
+        { success: false, error: 'Only Church Clerks or higher can create persons' },
         { status: 403 }
       );
     }
@@ -145,8 +145,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = personSchema.parse(body);
     
-    // Church admin - auto-assign their church
-    if (session.role === Role.CHURCH_ADMIN) {
+    // Church-level users (clerk, pastor, admin) - auto-assign their church
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    if (churchLevelRoles.includes(session.role)) {
       if (validatedData.churchId && validatedData.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only create persons for your church' },

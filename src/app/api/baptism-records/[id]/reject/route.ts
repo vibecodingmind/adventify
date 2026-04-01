@@ -25,13 +25,10 @@ export async function POST(
       );
     }
     
-    // Check permissions - Conference Admin or higher
-    if (session.role !== Role.GENERAL_CONFERENCE_ADMIN && 
-        session.role !== Role.DIVISION_ADMIN &&
-        session.role !== Role.UNION_ADMIN &&
-        session.role !== Role.CONFERENCE_ADMIN) {
+    // Check permissions - Church Pastor, Conference Admin, or higher
+    if (session.role === Role.MEMBER || session.role === Role.CHURCH_CLERK) {
       return NextResponse.json(
-        { success: false, error: 'Only Conference Admins or higher can reject baptism records' },
+        { success: false, error: 'Only Church Pastors or higher can reject baptism records' },
         { status: 403 }
       );
     }
@@ -72,7 +69,14 @@ export async function POST(
     }
     
     // Verify user has access to this record
-    if (session.role === Role.CONFERENCE_ADMIN) {
+    if (session.role === Role.CHURCH_PASTOR || session.role === Role.CHURCH_ADMIN) {
+      if (baptismRecord.churchId !== session.churchId) {
+        return NextResponse.json(
+          { success: false, error: 'You can only reject records for your church' },
+          { status: 403 }
+        );
+      }
+    } else if (session.role === Role.CONFERENCE_ADMIN) {
       if (baptismRecord.church.conferenceId !== session.conferenceId) {
         return NextResponse.json(
           { success: false, error: 'You can only reject records in your conference' },

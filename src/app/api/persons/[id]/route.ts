@@ -107,8 +107,9 @@ export async function PATCH(
       );
     }
 
-    // Church admin can only update persons in their church
-    if (session.role === Role.CHURCH_ADMIN) {
+    // Church-level users can only update persons in their church
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    if (churchLevelRoles.includes(session.role)) {
       if (!existingPerson.churchId || existingPerson.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only update persons in your church' },

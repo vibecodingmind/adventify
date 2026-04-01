@@ -151,7 +151,7 @@ export default function BaptismRecordsPage() {
   useEffect(() => {
     fetchRecords();
     fetchPersons();
-    if (user?.role !== Role.CHURCH_ADMIN) {
+    if (user?.role !== Role.CHURCH_CLERK && user?.role !== Role.CHURCH_PASTOR && user?.role !== Role.CHURCH_ADMIN) {
       fetchChurches();
     }
   }, [statusFilter]);
@@ -393,7 +393,8 @@ export default function BaptismRecordsPage() {
     }
   };
 
-  const canApprove = user?.role !== Role.MEMBER && user?.role !== Role.CHURCH_ADMIN;
+  // Church Pastor, Church Admin, and higher can approve/reject
+  const canApprove = user?.role !== Role.MEMBER && user?.role !== Role.CHURCH_CLERK;
   const canCreate = user?.role !== Role.MEMBER;
   const canEdit = user?.role !== Role.MEMBER;
   const canDelete = user?.role === Role.GENERAL_CONFERENCE_ADMIN || user?.role === Role.DIVISION_ADMIN || user?.role === Role.CONFERENCE_ADMIN;
@@ -614,7 +615,7 @@ export default function BaptismRecordsPage() {
               )}
             </div>
 
-            {user?.role !== Role.CHURCH_ADMIN && (
+            {user?.role !== Role.CHURCH_CLERK && user?.role !== Role.CHURCH_PASTOR && user?.role !== Role.CHURCH_ADMIN && (
               <div>
                 <label className="text-sm font-medium">Church *</label>
                 <Select onValueChange={(v) => createForm.setValue('churchId', v)}>

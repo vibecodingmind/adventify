@@ -15,9 +15,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = loginSchema.parse(body);
     
-    // Find user
+    // Find user with full relations
     const user = await db.user.findUnique({
       where: { email: validatedData.email.toLowerCase() },
+      include: {
+        division: { select: { id: true, code: true, name: true } },
+        union: { select: { id: true, code: true, name: true } },
+        conference: { select: { id: true, code: true, name: true } },
+        church: { select: { id: true, code: true, name: true, city: true, country: true } },
+      },
     });
     
     if (!user) {
@@ -80,6 +86,14 @@ export async function POST(request: NextRequest) {
           email: user.email,
           fullName: user.fullName,
           role: user.role,
+          divisionId: user.divisionId,
+          unionId: user.unionId,
+          conferenceId: user.conferenceId,
+          churchId: user.churchId,
+          division: user.division,
+          union: user.union,
+          conference: user.conference,
+          church: user.church,
         },
         token,
       },
