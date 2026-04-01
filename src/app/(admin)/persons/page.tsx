@@ -45,6 +45,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Users, Plus, Search, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { CountryCombobox } from '@/components/country-combobox';
 import { useToast } from '@/hooks/use-toast';
 import { Role } from '@prisma/client';
 
@@ -375,7 +376,10 @@ export default function PersonsPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium">Country</label>
-                    <Input {...createForm.register('country')} placeholder="United Kingdom" />
+                    <CountryCombobox
+                      value={createForm.watch('country') || ''}
+                      onChange={(v) => createForm.setValue('country', v)}
+                    />
                   </div>
                 </div>
                 {user?.role !== Role.CHURCH_ADMIN && churches.length > 0 && (
@@ -605,7 +609,10 @@ export default function PersonsPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">Country</label>
-                <Input {...editForm.register('country')} placeholder="United Kingdom" />
+                <CountryCombobox
+                  value={editForm.watch('country') || ''}
+                  onChange={(v) => editForm.setValue('country', v)}
+                />
               </div>
             </div>
             {user?.role !== Role.CHURCH_ADMIN && churches.length > 0 && (

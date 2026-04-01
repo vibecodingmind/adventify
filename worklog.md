@@ -217,3 +217,45 @@ Fix critical errors, install dependencies, fix middleware, polish UI, verify all
 - All pages compile and render without errors
 - ESLint passes with zero errors
 
+---
+## Task ID: 7 - frontend-agent
+### Work Task
+Replace the plain text input Country field on the Persons page with a searchable combobox dropdown showing flag emojis.
+
+### Work Summary
+
+1. **Created `/src/lib/countries.ts`** — Comprehensive country data module:
+   - Exports `Country` interface with `{ code: string, name: string, flag: string }`
+   - Contains ~195 world countries with ISO 2-letter codes, English names, and flag emojis
+   - Defines `popularCountryCodes` array (20 countries: US, GB, CA, AU, NG, KE, ZA, BR, IN, PH, DE, FR, JP, KR, MX, AR, CO, GH, TZ, UG) shown at the top
+   - Remaining countries ordered alphabetically
+   - Exports `getCountryByName(name)` helper for case-insensitive lookup
+   - Exports `getOrderedCountries()` to build the final ordered list
+   - Exports `COUNTRIES` as the pre-built ordered constant
+
+2. **Created `/src/components/country-combobox.tsx`** — Reusable searchable country dropdown:
+   - Uses shadcn/ui `Popover` + `Command` components (`cmdk` under the hood)
+   - `CountryCombobox` component accepts `value` (current country name string) and `onChange` callback
+   - Trigger button shows selected country with flag emoji, or "Select country..." placeholder
+   - `ChevronsUpDown` icon on the right side of trigger
+   - `CommandInput` with search icon for filtering
+   - `CommandList` with `CommandEmpty` ("No country found.") and `CommandGroup`
+   - Each `CommandItem` shows a `Check` icon (visible only when selected), flag emoji, and country name
+   - `value` prop is matched against country names via `getCountryByName()`
+   - Max scrollable height of 280px for the dropdown
+   - Popover width matches trigger width via `--radix-popover-trigger-width`
+
+3. **Updated `/src/app/(admin)/persons/page.tsx`** — Replaced country Input in both dialogs:
+   - Added `CountryCombobox` import
+   - **Create dialog**: Replaced `<Input {...createForm.register('country')} />` with `<CountryCombobox value={createForm.watch('country') || ''} onChange={(v) => createForm.setValue('country', v)} />`
+   - **Edit dialog**: Replaced `<Input {...editForm.register('country')} />` with `<CountryCombobox value={editForm.watch('country') || ''} onChange={(v) => editForm.setValue('country', v)} />`
+   - Edit dialog correctly pre-populates the country field from stored person data via `editForm.reset()` in `openEditDialog()`
+   - Gender field remains as a regular `Select` component (unchanged)
+   - No API routes or other pages modified
+
+### Stage Summary
+- Country field on Persons page is now a searchable combobox with ~195 countries and flag emojis
+- Popular countries (20 Adventist-heavy nations) appear at the top of the dropdown
+- Works in both Create and Edit dialogs with proper pre-population
+- ESLint passes with zero errors
+
