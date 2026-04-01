@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Public routes that don't require authentication
-const publicRoutes = ['/', '/login', '/verify', '/api/auth/login', '/api/seed', '/api/route'];
+const publicRoutes = ['/', '/login', '/verify', '/api/auth/login', '/api/seed', '/api/reset', '/api/route'];
 
 // API routes that handle their own auth (already use requireAuth internally)
 const selfAuthRoutes = [
