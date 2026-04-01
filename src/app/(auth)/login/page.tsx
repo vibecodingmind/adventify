@@ -65,7 +65,7 @@ export default function LoginPage() {
           title: 'Welcome back!',
           description: `Logged in as ${result.data.user.fullName}`,
         });
-        router.push('/');
+        router.push('/dashboard');
       } else {
         toast({
           variant: 'destructive',

@@ -20,7 +20,7 @@ export default function Home() {
 
   useEffect(() => {
     if (hydrated && isAuthenticated) {
-      router.push('/');
+      router.push('/dashboard');
     }
   }, [hydrated, isAuthenticated, router]);
 

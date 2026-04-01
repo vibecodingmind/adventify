@@ -27,7 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Hierarchy', href: '/hierarchy', icon: Building2, minRole: Role.CONFERENCE_ADMIN },
   { name: 'Persons', href: '/persons', icon: Users, minRole: Role.CHURCH_ADMIN },
   { name: 'Baptism Records', href: '/baptism-records', icon: FileText, minRole: Role.CHURCH_ADMIN },
