@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (validatedData.role === Role.CHURCH_ADMIN && !validatedData.churchId) {
+    if ((validatedData.role === Role.CHURCH_PASTOR || validatedData.role === Role.CHURCH_CLERK) && !validatedData.churchId) {
       return NextResponse.json(
-        { success: false, error: 'Church admin requires church assignment' },
+        { success: false, error: 'Church roles require church assignment' },
         { status: 400 }
       );
     }

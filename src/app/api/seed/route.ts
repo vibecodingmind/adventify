@@ -222,16 +222,6 @@ export async function POST() {
       },
     });
     
-    const churchAdmin = await db.user.create({
-      data: {
-        email: 'church.admin@adventify.org',
-        passwordHash,
-        fullName: 'London Central Church Administrator',
-        role: Role.CHURCH_ADMIN,
-        churchId: churches[0].id,
-      },
-    });
-    
     const churchClerk = await db.user.create({
       data: {
         email: 'church.clerk@adventify.org',
@@ -373,7 +363,7 @@ export async function POST() {
         unions: 3,
         conferences: 4,
         churches: churches.length,
-        users: 8,
+        users: 7,
         persons: persons.length,
         baptismRecords: baptismRecords.length,
         credentials: [
@@ -381,7 +371,6 @@ export async function POST() {
           { email: 'eud.admin@adventify.org', password: 'Password123', role: 'Division Admin (Euro-Asia)' },
           { email: 'buc.admin@adventify.org', password: 'Password123', role: 'Union Admin (British)' },
           { email: 'sec.admin@adventify.org', password: 'Password123', role: 'Conference Admin (South England)' },
-          { email: 'church.admin@adventify.org', password: 'Password123', role: 'Church Admin (London Central)' },
           { email: 'church.clerk@adventify.org', password: 'Password123', role: 'Church Clerk (London Central)' },
           { email: 'church.pastor@adventify.org', password: 'Password123', role: 'Church Pastor (London Central)' },
         ],

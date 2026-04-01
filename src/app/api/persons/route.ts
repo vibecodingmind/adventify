@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     } = {};
     
     // Apply scope filter
-    if ((session.role === Role.CHURCH_ADMIN || session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
+    if ((session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
       where.churchId = session.churchId;
     } else if (session.role === Role.CONFERENCE_ADMIN && session.conferenceId) {
       // Get all churches in conference
@@ -145,8 +145,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = personSchema.parse(body);
     
-    // Church-level users (clerk, pastor, admin) - auto-assign their church
-    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    // Church-level users (clerk, pastor) - auto-assign their church
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
     if (churchLevelRoles.includes(session.role)) {
       if (validatedData.churchId && validatedData.churchId !== session.churchId) {
         return NextResponse.json(

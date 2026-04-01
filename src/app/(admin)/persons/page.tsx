@@ -305,8 +305,8 @@ export default function PersonsPage() {
     }
   };
 
-  const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
-  const canEdit = user && !churchLevelRoles.includes(user.role) || user?.role === Role.CHURCH_ADMIN;
+  const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
+  const canEdit = user?.role !== Role.MEMBER;
   const canDelete = user?.role === Role.GENERAL_CONFERENCE_ADMIN || user?.role === Role.DIVISION_ADMIN || user?.role === Role.CONFERENCE_ADMIN;
   const canCreate = user?.role !== Role.MEMBER;
 

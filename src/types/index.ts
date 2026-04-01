@@ -228,11 +228,10 @@ export interface ChurchFormData {
 
 // Role hierarchy for permission checks
 export const ROLE_HIERARCHY: Record<Role, number> = {
-  GENERAL_CONFERENCE_ADMIN: 7,
-  DIVISION_ADMIN: 6,
-  UNION_ADMIN: 5,
-  CONFERENCE_ADMIN: 4,
-  CHURCH_ADMIN: 3,
+  GENERAL_CONFERENCE_ADMIN: 6,
+  DIVISION_ADMIN: 5,
+  UNION_ADMIN: 4,
+  CONFERENCE_ADMIN: 3,
   CHURCH_PASTOR: 2,
   CHURCH_CLERK: 1,
   MEMBER: 0,

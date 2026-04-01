@@ -151,7 +151,7 @@ export default function BaptismRecordsPage() {
   useEffect(() => {
     fetchRecords();
     fetchPersons();
-    if (user?.role !== Role.CHURCH_CLERK && user?.role !== Role.CHURCH_PASTOR && user?.role !== Role.CHURCH_ADMIN) {
+    if (user?.role !== Role.CHURCH_CLERK && user?.role !== Role.CHURCH_PASTOR) {
       fetchChurches();
     }
   }, [statusFilter]);
@@ -398,11 +398,11 @@ export default function BaptismRecordsPage() {
   const canCreate = user?.role !== Role.MEMBER;
   const canEdit = user?.role !== Role.MEMBER;
   const canDelete = user?.role === Role.GENERAL_CONFERENCE_ADMIN || user?.role === Role.DIVISION_ADMIN || user?.role === Role.CONFERENCE_ADMIN;
-  const canGenerateCertificate = user?.role !== Role.MEMBER;
+  const canGenerateCertificate = user?.role !== Role.MEMBER; // Kept for reference but button removed (auto-generated on approval)
 
   const pendingCount = records.filter(r => r.status === 'PENDING').length;
 
-  // Determine if edit is allowed for a record (only pending, and CHURCH_ADMIN+ in scope)
+  // Determine if edit is allowed for a record (only pending, and CHURCH_CLERK+ in scope)
   const canEditRecord = (record: BaptismRecord) => {
     return canEdit && record.status === 'PENDING';
   };
@@ -567,16 +567,7 @@ export default function BaptismRecordsPage() {
                               </Button>
                             </>
                           )}
-                          {record.status === 'APPROVED' && !record.certificate && canGenerateCertificate && (
-                            <Button
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                              onClick={() => handleGenerateCertificate(record.id)}
-                            >
-                              <Award className="h-4 w-4 mr-1" />
-                              Generate
-                            </Button>
-                          )}
+                          {/* Generate Certificate button removed - certificates are auto-generated on approval */}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -615,7 +606,7 @@ export default function BaptismRecordsPage() {
               )}
             </div>
 
-            {user?.role !== Role.CHURCH_CLERK && user?.role !== Role.CHURCH_PASTOR && user?.role !== Role.CHURCH_ADMIN && (
+            {user?.role !== Role.CHURCH_CLERK && user?.role !== Role.CHURCH_PASTOR && (
               <div>
                 <label className="text-sm font-medium">Church *</label>
                 <Select onValueChange={(v) => createForm.setValue('churchId', v)}>

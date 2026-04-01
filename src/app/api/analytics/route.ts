@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Build filter based on user scope
     let churchIds: string[] = [];
     
-    if (session.role === Role.CHURCH_ADMIN && session.churchId) {
+    if ((session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
       churchIds = [session.churchId];
     } else if (session.role === Role.CONFERENCE_ADMIN && session.conferenceId) {
       const churches = await db.church.findMany({
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     // Get church breakdown if not church admin
     let churchBreakdown: Array<{ churchId: string; churchName: string; total: number; pending: number; approved: number }> = [];
     
-    if (session.role !== Role.CHURCH_ADMIN && session.role !== Role.MEMBER) {
+    if (session.role !== Role.CHURCH_PASTOR && session.role !== Role.CHURCH_CLERK && session.role !== Role.MEMBER) {
       churchBreakdown = await getChurchBreakdown(churchIds, yearStart, yearEnd);
     }
     

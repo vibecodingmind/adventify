@@ -483,8 +483,8 @@ export default function HierarchyPage() {
                              user?.role === Role.UNION_ADMIN;
   const canDeleteConference = user?.role === Role.GENERAL_CONFERENCE_ADMIN || user?.role === Role.DIVISION_ADMIN;
 
-  const canCreateChurch = user?.role !== Role.MEMBER && user?.role !== Role.CHURCH_ADMIN;
-  const canEditChurch = user?.role !== Role.MEMBER && user?.role !== Role.CHURCH_ADMIN;
+  const canCreateChurch = user?.role !== Role.MEMBER && user?.role !== Role.CHURCH_PASTOR && user?.role !== Role.CHURCH_CLERK;
+  const canEditChurch = user?.role !== Role.MEMBER && user?.role !== Role.CHURCH_PASTOR && user?.role !== Role.CHURCH_CLERK;
   const canDeleteChurch = user?.role === Role.GENERAL_CONFERENCE_ADMIN || user?.role === Role.DIVISION_ADMIN || user?.role === Role.UNION_ADMIN;
 
   const entityLabel = (type: EntityType) => type.charAt(0).toUpperCase() + type.slice(1);

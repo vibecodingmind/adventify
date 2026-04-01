@@ -69,7 +69,7 @@ export async function POST(
     }
     
     // Verify user has access to this record
-    if (session.role === Role.CHURCH_PASTOR || session.role === Role.CHURCH_ADMIN) {
+    if (session.role === Role.CHURCH_PASTOR) {
       if (baptismRecord.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only reject records for your church' },

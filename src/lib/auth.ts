@@ -81,7 +81,7 @@ export function hasAccessToEntity(
       }
       return user.conferenceId === entityId;
     case 'church':
-      if (user.role === Role.DIVISION_ADMIN || user.role === Role.UNION_ADMIN || user.role === Role.CONFERENCE_ADMIN || user.role === Role.CHURCH_ADMIN || user.role === Role.CHURCH_PASTOR || user.role === Role.CHURCH_CLERK) {
+      if (user.role === Role.DIVISION_ADMIN || user.role === Role.UNION_ADMIN || user.role === Role.CONFERENCE_ADMIN || user.role === Role.CHURCH_PASTOR || user.role === Role.CHURCH_CLERK) {
         return true; // Need to verify church belongs to conference
       }
       return user.churchId === entityId;
@@ -144,7 +144,7 @@ export const PERMISSIONS = {
   DELETE_BAPTISM_RECORD: Role.CONFERENCE_ADMIN,
   
   // Certificates
-  GENERATE_CERTIFICATE: Role.CHURCH_CLERK,
+  GENERATE_CERTIFICATE: Role.CHURCH_PASTOR,
   VIEW_CERTIFICATE: Role.MEMBER,
   DOWNLOAD_CERTIFICATE: Role.MEMBER,
   

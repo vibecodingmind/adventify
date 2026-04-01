@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       conference?: { unionId?: string; union?: { divisionId?: string } };
     } = {};
     
-    if (session.role === Role.CHURCH_ADMIN && session.churchId) {
+    if ((session.role === Role.CHURCH_CLERK || session.role === Role.CHURCH_PASTOR) && session.churchId) {
       // Church admin sees only their church
       return NextResponse.json({
         success: true,

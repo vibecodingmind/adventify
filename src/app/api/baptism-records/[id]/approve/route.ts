@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
+import { createCertificate } from '@/lib/certificate';
 import { Role, BaptismStatus } from '@prisma/client';
 
 // POST - Approve baptism record
@@ -61,7 +62,7 @@ export async function POST(
     }
     
     // Verify user has access to this record
-    if (session.role === Role.CHURCH_PASTOR || session.role === Role.CHURCH_ADMIN) {
+    if (session.role === Role.CHURCH_PASTOR) {
       if (baptismRecord.churchId !== session.churchId) {
         return NextResponse.json(
           { success: false, error: 'You can only approve records for your church' },
@@ -104,7 +105,18 @@ export async function POST(
         church: { select: { id: true, name: true } },
       },
     });
-    
+
+    // Auto-generate certificate on approval
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+    let certificate = null;
+    try {
+      certificate = await createCertificate(id, baseUrl);
+    } catch (certError) {
+      console.error('Auto-generate certificate error:', certError);
+    }
+
     // Create audit log
     await createAuditLog({
       userId: session.userId,
@@ -114,12 +126,16 @@ export async function POST(
       details: {
         personName: updatedRecord.person.fullName,
         churchName: updatedRecord.church.name,
+        certificateGenerated: !!certificate,
       },
     });
-    
+
     return NextResponse.json({
       success: true,
-      data: updatedRecord,
+      data: {
+        ...updatedRecord,
+        certificate,
+      },
     });
   } catch (error) {
     console.error('Approve baptism record error:', error);

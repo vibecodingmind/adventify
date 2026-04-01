@@ -320,7 +320,8 @@ function getScopeLabel(role?: Role): string {
       return 'union';
     case Role.CONFERENCE_ADMIN:
       return 'conference';
-    case Role.CHURCH_ADMIN:
+    case Role.CHURCH_PASTOR:
+    case Role.CHURCH_CLERK:
       return 'church';
     default:
       return 'area';

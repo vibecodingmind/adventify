@@ -80,10 +80,10 @@ export async function PATCH(
       );
     }
 
-    // CHURCH_ADMIN+ can update persons in their scope
+    // CHURCH_CLERK+ can update persons in their scope
     if (!canPerformAction(session, 'UPDATE_PERSON')) {
       return NextResponse.json(
-        { success: false, error: 'Only Church Admins or higher can update persons' },
+        { success: false, error: 'Only Church Clerks or higher can update persons' },
         { status: 403 }
       );
     }
@@ -108,7 +108,7 @@ export async function PATCH(
     }
 
     // Church-level users can only update persons in their church
-    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
     if (churchLevelRoles.includes(session.role)) {
       if (!existingPerson.churchId || existingPerson.churchId !== session.churchId) {
         return NextResponse.json(

@@ -79,7 +79,7 @@ export async function GET(
   }
 }
 
-// PATCH - Update baptism record (only PENDING records, CHURCH_ADMIN+ in scope)
+// PATCH - Update baptism record (only PENDING records, CHURCH_CLERK+ in scope)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -127,7 +127,7 @@ export async function PATCH(
     }
 
     // Scope check: church-level users can only edit records in their church
-    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR, Role.CHURCH_ADMIN];
+    const churchLevelRoles: Role[] = [Role.CHURCH_CLERK, Role.CHURCH_PASTOR];
     if (churchLevelRoles.includes(session.role)) {
       if (existingRecord.churchId !== session.churchId) {
         return NextResponse.json(

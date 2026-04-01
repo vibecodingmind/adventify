@@ -130,11 +130,10 @@ interface Church {
 }
 
 const ROLE_HIERARCHY: Record<Role, number> = {
-  GENERAL_CONFERENCE_ADMIN: 7,
-  DIVISION_ADMIN: 6,
-  UNION_ADMIN: 5,
-  CONFERENCE_ADMIN: 4,
-  CHURCH_ADMIN: 3,
+  GENERAL_CONFERENCE_ADMIN: 6,
+  DIVISION_ADMIN: 5,
+  UNION_ADMIN: 4,
+  CONFERENCE_ADMIN: 3,
   CHURCH_PASTOR: 2,
   CHURCH_CLERK: 1,
   MEMBER: 0,
@@ -156,8 +155,6 @@ function getRoleBadgeVariant(role: Role): string {
       return 'bg-cyan-100 text-cyan-800 border-cyan-200';
     case Role.CONFERENCE_ADMIN:
       return 'bg-teal-100 text-teal-800 border-teal-200';
-    case Role.CHURCH_ADMIN:
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     case Role.CHURCH_PASTOR:
       return 'bg-blue-100 text-blue-800 border-blue-200';
     case Role.CHURCH_CLERK:
@@ -861,7 +858,6 @@ export default function UsersPage() {
                 {(selectedRole === Role.DIVISION_ADMIN ||
                   selectedRole === Role.UNION_ADMIN ||
                   selectedRole === Role.CONFERENCE_ADMIN ||
-                  selectedRole === Role.CHURCH_ADMIN ||
                   selectedRole === Role.CHURCH_PASTOR ||
                   selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) && (
@@ -890,7 +886,6 @@ export default function UsersPage() {
 
                 {(selectedRole === Role.UNION_ADMIN ||
                   selectedRole === Role.CONFERENCE_ADMIN ||
-                  selectedRole === Role.CHURCH_ADMIN ||
                   selectedRole === Role.CHURCH_PASTOR ||
                   selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) &&
@@ -916,7 +911,6 @@ export default function UsersPage() {
                   )}
 
                 {(selectedRole === Role.CONFERENCE_ADMIN ||
-                  selectedRole === Role.CHURCH_ADMIN ||
                   selectedRole === Role.CHURCH_PASTOR ||
                   selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) &&
@@ -941,8 +935,7 @@ export default function UsersPage() {
                     </div>
                   )}
 
-                {(selectedRole === Role.CHURCH_ADMIN ||
-                  selectedRole === Role.CHURCH_PASTOR ||
+                {(selectedRole === Role.CHURCH_PASTOR ||
                   selectedRole === Role.CHURCH_CLERK ||
                   selectedRole === Role.MEMBER) &&
                   selectedConferenceId && (
