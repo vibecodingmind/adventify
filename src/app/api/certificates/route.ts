@@ -550,7 +550,7 @@ export async function getCertificateQR(
   }
 }
 
-export default {
+const certificateHandlers = {
   POST,
   GET,
   downloadCertificate,
@@ -560,3 +560,5 @@ export default {
   listCertificates,
   getCertificateQR,
 };
+
+export default certificateHandlers;

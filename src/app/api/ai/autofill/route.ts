@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { Role } from '@prisma/client';
 
-// AI SDK is only available in local sandbox - graceful degradation
-let ZAI: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  ZAI = require('z-ai-web-dev-sdk').default;
-} catch {
-  // SDK not available in production
-}
+// AI SDK is only available in environments where z-ai-web-dev-sdk is installed.
+// When the SDK is available, uncomment the following line and set ZAI appropriately.
+// The API returns AI_UNAVAILABLE when the SDK is not configured.
+const ZAI: any = null;
+
+// To enable AI autofill, install z-ai-web-dev-sdk and update:
+// const { default: ZAI } = await import('z-ai-web-dev-sdk');
 
 // POST - AI auto-fill form fields
 export async function POST(request: NextRequest) {
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!ZAI) {
       return NextResponse.json({
         success: false,
-        error: 'AI auto-fill is not available in this environment. This feature requires the z-ai-web-dev-sdk.',
+        error: 'AI auto-fill is not available in this environment. Install z-ai-web-dev-sdk to enable this feature.',
         code: 'AI_UNAVAILABLE',
       });
     }
