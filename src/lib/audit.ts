@@ -22,7 +22,8 @@ export type AuditEntity =
   | 'Church' 
   | 'Person' 
   | 'BaptismRecord' 
-  | 'Certificate';
+  | 'Certificate'
+  | 'MemberRequest';
 
 interface CreateAuditLogParams {
   userId: string;

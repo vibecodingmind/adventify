@@ -26,6 +26,7 @@ const selfAuthRoutes = [
   '/api/revocations',
   '/api/search',
   '/api/ai',
+  '/api/member-requests',
 ];
 
 export default function middleware(req: NextRequest) {

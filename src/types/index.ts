@@ -1,7 +1,7 @@
-import { Role, BaptismStatus } from '@prisma/client';
+import { Role, BaptismStatus, DocumentType, RequestStatus } from '@prisma/client';
 
 // Re-export Prisma types
-export { Role, BaptismStatus };
+export { Role, BaptismStatus, DocumentType, RequestStatus };
 
 // API Response types
 export interface ApiResponse<T = unknown> {
@@ -245,3 +245,81 @@ export function canManageRole(actorRole: Role, targetRole: Role): boolean {
   // Cannot manage users with equal or higher role
   return ROLE_HIERARCHY[actorRole] > ROLE_HIERARCHY[targetRole];
 }
+
+// Member Request types
+export interface MemberRequestWithDetails {
+  id: string;
+  requestId: string;
+  memberId: string;
+  personId?: string | null;
+  churchId: string;
+  documentType: DocumentType;
+  reason?: string | null;
+  clerkNotes?: string | null;
+  status: RequestStatus;
+  editedBy?: string | null;
+  editedAt?: Date | null;
+  reviewedBy?: string | null;
+  reviewedAt?: Date | null;
+  rejectionReason?: string | null;
+  pdfData?: string | null;
+  documentUrl?: string | null;
+  documentExpiry?: Date | null;
+  generatedAt?: Date | null;
+  generatedBy?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  member?: { id: string; fullName: string; email: string; } | null;
+  person?: { id: string; pid: string; fullName: string; email?: string | null; } | null;
+  church?: { id: string; name: string; city?: string | null; country?: string | null; } | null;
+  editor?: { id: string; fullName: string; } | null;
+  reviewer?: { id: string; fullName: string; } | null;
+  generator?: { id: string; fullName: string; } | null;
+}
+
+export interface MemberRequestFormData {
+  personId: string;
+  documentType: DocumentType;
+  reason?: string;
+}
+
+export interface ClerkEditFormData {
+  clerkNotes?: string;
+}
+
+export interface RejectRequestFormData {
+  rejectionReason: string;
+}
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  BAPTISM_CERTIFICATE: 'Baptism Certificate',
+  INTRODUCTION_LETTER: 'Introduction Letter',
+  MEMBERSHIP_VERIFICATION: 'Membership Verification',
+  CHARACTER_REFERENCE: 'Character Reference',
+  SERVICE_CERTIFICATE: 'Service Certificate',
+};
+
+export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
+  PENDING: 'Pending',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  GENERATED: 'Generated',
+};
+
+export type RequestAction = 
+  | 'CREATE_REQUEST'
+  | 'VIEW_OWN_REQUESTS'
+  | 'VIEW_CHURCH_REQUESTS'
+  | 'EDIT_REQUEST'
+  | 'APPROVE_REQUEST'
+  | 'REJECT_REQUEST'
+  | 'GENERATE_DOCUMENT'
+  | 'DOWNLOAD_OWN_DOCUMENT'
+  | 'DOWNLOAD_CHURCH_DOCUMENT';
+
+export const REQUEST_DENIED_ROLES: Role[] = [
+  Role.GENERAL_CONFERENCE_ADMIN,
+  Role.DIVISION_ADMIN,
+  Role.UNION_ADMIN,
+  Role.CONFERENCE_ADMIN,
+];

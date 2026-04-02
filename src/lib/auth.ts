@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { db } from './db';
 import { verifyToken, type JwtPayload } from './jwt';
 import { Role, type User } from '@prisma/client';
-import { hasHigherOrEqualRole } from '@/types';
+import { hasHigherOrEqualRole, REQUEST_DENIED_ROLES, type RequestAction } from '@/types';
 
 export const SESSION_COOKIE_NAME = 'adventify_session';
 
@@ -157,4 +157,77 @@ export const PERMISSIONS = {
 export function canPerformAction(user: AuthUser, action: keyof typeof PERMISSIONS): boolean {
   const requiredRole = PERMISSIONS[action];
   return hasHigherOrEqualRole(user.role, requiredRole);
+}
+
+// Member Request RBAC - strict permission checks
+export function canPerformRequestAction(
+  user: AuthUser,
+  action: RequestAction
+): { allowed: boolean; churchId?: string; error?: string } {
+  // Conference Admin and above are always denied
+  if (REQUEST_DENIED_ROLES.includes(user.role)) {
+    return { allowed: false, error: 'Conference-level and above roles cannot access member requests' };
+  }
+
+  // All request actions require a church assignment
+  if (!user.churchId) {
+    return { allowed: false, error: 'User must be assigned to a church' };
+  }
+
+  switch (action) {
+    case 'CREATE_REQUEST':
+      if (user.role !== Role.CHURCH_CLERK) {
+        return { allowed: false, error: 'Only church clerks can create member requests' };
+      }
+      return { allowed: true, churchId: user.churchId };
+
+    case 'VIEW_OWN_REQUESTS':
+      return { allowed: true, churchId: user.churchId };
+
+    case 'VIEW_CHURCH_REQUESTS':
+      if (user.role !== Role.CHURCH_CLERK && user.role !== Role.CHURCH_PASTOR) {
+        return { allowed: false, error: 'Only clerks and pastors can view church requests' };
+      }
+      return { allowed: true, churchId: user.churchId };
+
+    case 'EDIT_REQUEST':
+      if (user.role !== Role.CHURCH_CLERK) {
+        return { allowed: false, error: 'Only church clerks can edit requests' };
+      }
+      return { allowed: true, churchId: user.churchId };
+
+    case 'APPROVE_REQUEST':
+    case 'REJECT_REQUEST':
+      if (user.role !== Role.CHURCH_PASTOR) {
+        return { allowed: false, error: 'Only pastors can approve or reject requests' };
+      }
+      return { allowed: true, churchId: user.churchId };
+
+    case 'GENERATE_DOCUMENT':
+      if (user.role !== Role.CHURCH_PASTOR) {
+        return { allowed: false, error: 'Only pastors can generate documents' };
+      }
+      return { allowed: true, churchId: user.churchId };
+
+    case 'DOWNLOAD_OWN_DOCUMENT':
+      return { allowed: true, churchId: user.churchId };
+
+    case 'DOWNLOAD_CHURCH_DOCUMENT':
+      if (user.role !== Role.CHURCH_CLERK && user.role !== Role.CHURCH_PASTOR) {
+        return { allowed: false, error: 'Only clerks and pastors can download church documents' };
+      }
+      return { allowed: true, churchId: user.churchId };
+
+    default:
+      return { allowed: false, error: 'Unknown request action' };
+  }
+}
+
+export async function requireRequestAction(action: RequestAction): Promise<AuthUser> {
+  const session = await requireAuth();
+  const result = canPerformRequestAction(session, action);
+  if (!result.allowed) {
+    throw new Error(result.error || 'Forbidden');
+  }
+  return session;
 }

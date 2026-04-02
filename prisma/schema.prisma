@@ -53,6 +53,23 @@ enum BatchJobStatus {
   PARTIALLY_COMPLETED
 }
 
+// Document Types for Member Requests
+enum DocumentType {
+  BAPTISM_CERTIFICATE
+  INTRODUCTION_LETTER
+  MEMBERSHIP_VERIFICATION
+  CHARACTER_REFERENCE
+  SERVICE_CERTIFICATE
+}
+
+// Member Request Status
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  GENERATED
+}
+
 // Users table - Authentication and Authorization
 model User {
   id           String   @id @default(cuid())
@@ -85,6 +102,10 @@ model User {
   notifications Notification[] @relation("UserNotifications")
   sentNotifications Notification[] @relation("SentByUser")
   batchJobs   BatchJob[] @relation("BatchCreator")
+  memberRequests MemberRequest[] @relation("MemberRequests")
+  editedRequests MemberRequest[] @relation("EditedRequests")
+  reviewedRequests MemberRequest[] @relation("ReviewedRequests")
+  generatedDocuments MemberRequest[] @relation("GeneratedDocuments")
 }
 
 // Division - Highest organizational unit
@@ -159,6 +180,7 @@ model Church {
   baptismRecords BaptismRecord[]
   users          User[]
   certificateTemplates CertificateTemplate[]
+  memberRequests MemberRequest[]
 
   @@unique([code, conferenceId])
 }
@@ -183,6 +205,7 @@ model Person {
   church       Church?       @relation(fields: [churchId], references: [id], onDelete: SetNull)
   baptismRecord BaptismRecord?
   user         User?
+  memberRequests MemberRequest[]
 }
 
 // Baptism Record - Core baptism information
@@ -291,6 +314,38 @@ model BatchJob {
   updatedAt       DateTime        @updatedAt
 
   creator User @relation("BatchCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+}
+
+// Member Request - Document requests from church members
+model MemberRequest {
+  id              String       @id @default(cuid())
+  requestId       String       @unique
+  memberId        String
+  personId        String?
+  churchId        String
+  documentType    DocumentType
+  reason          String?
+  clerkNotes      String?
+  status          RequestStatus @default(PENDING)
+  editedBy        String?
+  editedAt        DateTime?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  pdfData         String?
+  documentUrl     String?
+  documentExpiry  DateTime?
+  generatedAt     DateTime?
+  generatedBy     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  member    User    @relation("MemberRequests", fields: [memberId], references: [id])
+  person    Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  church    Church  @relation(fields: [churchId], references: [id])
+  editor    User?   @relation("EditedRequests", fields: [editedBy], references: [id])
+  reviewer  User?   @relation("ReviewedRequests", fields: [reviewedBy], references: [id])
+  generator User?   @relation("GeneratedDocuments", fields: [generatedBy], references: [id])
 }
 
 // Audit Log - Track all system actions

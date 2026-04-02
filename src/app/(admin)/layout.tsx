@@ -34,6 +34,7 @@ import { LanguageSelector } from '@/components/language-selector';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Document Requests', href: '/member-requests', icon: FileText, minRole: Role.MEMBER },
   { name: 'Hierarchy', href: '/hierarchy', icon: Building2, minRole: Role.CONFERENCE_ADMIN },
   { name: 'Persons', href: '/persons', icon: Users, minRole: Role.CHURCH_CLERK },
   { name: 'Baptism Records', href: '/baptism-records', icon: FileText, minRole: Role.CHURCH_CLERK },
