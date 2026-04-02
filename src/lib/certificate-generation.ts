@@ -36,7 +36,7 @@ export interface CertificateGenerationResult {
     generatedAt: Date;
     recipientName: string;
     baptismDate: Date;
-    certificate Number: string;
+    certificateNumber: string;
     securityLevel: string;
   };
 }
