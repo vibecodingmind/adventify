@@ -1,0 +1,520 @@
+// This is the UPDATED Prisma schema for the Revised Certification Platform Architecture
+// Replace your existing prisma/schema.prisma with this version
+// After updating, run: npx prisma migrate dev --name add_certificate_request_workflow
+
+datasource db {
+  provider = "postgresql"  // or "sqlite" for development
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  GENERAL_CONFERENCE_ADMIN
+  DIVISION_ADMIN
+  UNION_ADMIN
+  CONFERENCE_ADMIN
+  CHURCH_PASTOR
+  CHURCH_CLERK
+  MEMBER
+}
+
+enum RequestStatus {
+  DRAFT               // Clerk creating, not submitted
+  SUBMITTED           // Waiting for pastor approval
+  APPROVED            // Pastor approved, certificate generated
+  REJECTED            // Pastor rejected, feedback provided
+  AWAITING_INFO       // Requesting clarification from clerk
+  GENERATED           // Certificate PDF created
+  DELIVERED           // Sent to member
+  REVOKED             // Certificate invalidated
+  ARCHIVED            // Historical record
+}
+
+enum CertificateStatus {
+  ACTIVE              // Valid and can be verified
+  REVOKED             // Invalidated by pastor
+  ARCHIVED            // Old certificate kept for records
+}
+
+// ============================================
+// USER & ORGANIZATION MODELS
+// ============================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password        String    // hashed with bcrypt
+  fullName        String
+  role            Role
+
+  // Organizational scope (hierarchical)
+  // Only one level per user - determines their access scope
+  divisionId      String?
+  unionId         String?
+  conferenceId    String?
+  churchId        String?
+
+  // Relations
+  division        Division?     @relation(fields: [divisionId], references: [id])
+  union           Union?        @relation(fields: [unionId], references: [id])
+  conference      Conference?   @relation(fields: [conferenceId], references: [id])
+  church          Church?       @relation(fields: [churchId], references: [id])
+
+  // Certificate workflow relations
+  certificateRequestsCreated   CertificateRequest[] @relation("CreatedBy")
+  certificateRequestsApproved  CertificateRequest[] @relation("ApprovedBy")
+  auditLogs                    AuditLog[]
+
+  // Metadata
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([churchId])
+}
+
+model Division {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  headquarters    String?
+  description     String?
+
+  // Relations
+  unions          Union[]
+  users           User[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Union {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  divisionId      String
+  headquarters    String?
+  description     String?
+
+  // Relations
+  division        Division  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  conferences     Conference[]
+  users           User[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([divisionId])
+}
+
+model Conference {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  unionId         String
+  headquarters    String?
+  description     String?
+
+  // Relations
+  union           Union     @relation(fields: [unionId], references: [id], onDelete: Cascade)
+  churches        Church[]
+  users           User[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([unionId])
+}
+
+model Church {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  conferenceId    String
+  address         String?
+  city            String?
+  country         String?
+  phone           String?
+  email           String?
+
+  // Relations
+  conference      Conference @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  people          Person[]
+  users           User[]
+  certificateRequests CertificateRequest[]
+  certificates    Certificate[]
+  templates       CertificateTemplate[]
+
+  // Church customization
+  defaultTemplateId String?
+  customLogo      String?   // URL to logo
+  customColors    Json?     // { primary: "#...", secondary: "..." }
+  customFonts     Json?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([conferenceId])
+}
+
+model Person {
+  id              String    @id @default(cuid())
+  pid             String    @unique  // Personal ID (church-specific)
+  fullName        String
+  dateOfBirth     DateTime?
+  gender          String?
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  country         String?
+
+  churchId        String
+  church          Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  // Relations
+  certificateRequests CertificateRequest[]
+  certificates    Certificate[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([churchId])
+  @@index([pid])
+}
+
+// ============================================
+// CERTIFICATE TYPE SYSTEM (NEW)
+// ============================================
+
+model CertificateType {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  description     String?
+
+  // JSON schema defining type-specific fields
+  // Example:
+  // {
+  //   "fields": [
+  //     { "name": "baptismDate", "type": "date", "required": true, "label": "Date of Baptism" },
+  //     { "name": "location", "type": "text", "required": true, "label": "Location" },
+  //     { "name": "pastorName", "type": "text", "required": true, "label": "Pastor Name" }
+  //   ]
+  // }
+  fieldSchema     Json
+
+  icon            String?   // Emoji like 💧 for baptism
+
+  // Relations
+  requests        CertificateRequest[]
+
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([code])
+}
+
+// ============================================
+// CERTIFICATE REQUEST MODEL (NEW - KEY)
+// ============================================
+
+model CertificateRequest {
+  id              String    @id @default(cuid())
+
+  // Type and scope
+  certificateTypeId String
+  certificateType CertificateType @relation(fields: [certificateTypeId], references: [id])
+
+  // Details
+  recipientId     String
+  recipient       Person    @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  churchId        String
+  church          Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  // Certificate-type-specific data (flexible JSON)
+  // Example for baptism:
+  // {
+  //   "baptismDate": "2024-03-15",
+  //   "location": "Maple Street Church Baptismal Pool",
+  //   "pastorName": "David Johnson",
+  //   "witnessName": "Susan Miller",
+  //   "notes": "Beautiful ceremony"
+  // }
+  details         Json
+
+  // Template selection
+  templateId      String    @default("minimalist")  // "minimalist" | "traditional" | "digital_native"
+  notes           String?   // Clerk's notes to pastor
+
+  // Status workflow
+  status          RequestStatus @default(DRAFT)
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+
+  // Approval details
+  approvedById    String?
+  approvedBy      User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
+  rejectionReason String?
+
+  // Creator (Church Clerk)
+  createdById     String
+  createdBy       User      @relation("CreatedBy", fields: [createdById], references: [id])
+
+  // Relations
+  certificate     Certificate?  // 1-to-1 when approved
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([churchId])
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdById])
+  @@index([approvedById])
+}
+
+// ============================================
+// CERTIFICATE MODEL (UPDATED)
+// ============================================
+
+model Certificate {
+  id              String    @id @default(cuid())
+
+  // Request reference (links to approval workflow)
+  requestId       String    @unique
+  request         CertificateRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  // Certificate number (Baptism Certificate Number format)
+  // Format: DIV-UNI-CON-CH-YEAR-###
+  // Example: EUD-001-01-01-2024-001
+  bcn             String    @unique
+
+  // Details
+  recipientId     String
+  recipient       Person    @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  churchId        String
+  church          Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  // Certificate content (from request details)
+  certificateDate DateTime
+  certificateData Json      // All certificate details
+
+  // Files
+  pdfUrl          String?   // S3 URL to generated PDF
+  qrCodeUrl       String?   // S3 URL to QR code image
+  qrCodeData      String?   // Raw QR code data URL
+  walletPassUrl   String?   // URL to digital wallet pass
+
+  // Security
+  digitalSignature String?  // HMAC-SHA256 signature (hex)
+  verificationUrl String?   // Public verification URL slug
+  verificationToken String? // Random token for verification
+
+  // Status & lifecycle
+  status          CertificateStatus @default(ACTIVE)
+  revocationReason String?
+  revokedAt       DateTime?
+
+  // Audit
+  generatedAt     DateTime  @default(now())
+  deliveredAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([bcn])
+  @@index([recipientId])
+  @@index([churchId])
+  @@index([status])
+  @@index([verificationToken])
+}
+
+// ============================================
+// TEMPLATE CUSTOMIZATION (NEW)
+// ============================================
+
+model CertificateTemplate {
+  id              String    @id @default(cuid())
+
+  // Base template
+  baseTemplate    String    // "minimalist" | "traditional" | "digital_native"
+
+  // Customization overrides
+  customization   Json      // { colors: {...}, fonts: {...}, ... }
+
+  // Owner (church-specific customization)
+  churchId        String?
+  church          Church?   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  name            String?
+  isDefault       Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([churchId])
+}
+
+// ============================================
+// AUDIT LOGGING (NEW - FOR COMPLIANCE)
+// ============================================
+
+model AuditLog {
+  id              String    @id @default(cuid())
+
+  // Action tracking
+  action          String    // "REQUEST_CREATED", "REQUEST_APPROVED", "CERT_GENERATED", "CERT_REVOKED", etc.
+  resourceType    String    // "CertificateRequest", "Certificate", "User", etc.
+  resourceId      String    // ID of the resource being audited
+
+  // Actor (who did the action)
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Context
+  details         Json?     // Additional data (old values, new values, reasons, etc.)
+  ipAddress       String?
+  userAgent       String?
+
+  timestamp       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([resourceType])
+  @@index([resourceId])
+  @@index([timestamp])
+}
+
+// ============================================
+// LEGACY MODELS (KEEP FOR COMPATIBILITY)
+// ============================================
+
+model BaptismRecord {
+  id              String    @id @default(cuid())
+  personId        String
+  churchId        String
+  baptismDate     DateTime
+  baptismLocation String?
+  pastorName      String
+  pastorTitle     String?
+  witnessName     String?
+  status          String    @default("pending")
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([personId])
+  @@index([churchId])
+}
+
+// ============================================
+// NOTES ON MIGRATION
+// ============================================
+//
+// STEPS TO APPLY THIS SCHEMA:
+//
+// 1. Back up your current database
+// 2. Copy this schema to your prisma/schema.prisma
+// 3. Run: npx prisma migrate dev --name "add_certificate_request_workflow"
+// 4. Answer "yes" when prompted about resetting the database
+// 5. Seed with certificate types:
+//
+//    npx prisma db seed
+//
+// SEED DATA (add to prisma/seed.ts):
+//
+// const certificateTypes = [
+//   {
+//     code: "BAPTISM",
+//     name: "Baptism Certificate",
+//     description: "Certificate of baptism in the Seventh-day Adventist Church",
+//     fieldSchema: {
+//       fields: [
+//         { name: "baptismDate", type: "date", required: true },
+//         { name: "location", type: "text", required: true },
+//         { name: "pastorName", type: "text", required: true },
+//         { name: "witnessName", type: "text", required: false },
+//         { name: "notes", type: "textarea", required: false }
+//       ]
+//     },
+//     icon: "💧"
+//   },
+//   {
+//     code: "YOUTH_HONORS",
+//     name: "Youth Honors Certificate",
+//     description: "Recognition of completed youth honors/pathfinders badge",
+//     fieldSchema: {
+//       fields: [
+//         { name: "honorName", type: "text", required: true },
+//         { name: "dateCompleted", type: "date", required: true },
+//         { name: "leaderName", type: "text", required: true },
+//         { name: "courseDetails", type: "textarea", required: false }
+//       ]
+//     },
+//     icon: "⭐"
+//   },
+//   {
+//     code: "SERVICE_RECOGNITION",
+//     name: "Service Recognition Certificate",
+//     description: "Recognition for years of service or special contributions",
+//     fieldSchema: {
+//       fields: [
+//         { name: "serviceDescription", type: "text", required: true },
+//         { name: "yearsOfService", type: "number", required: false },
+//         { name: "dateOfRecognition", type: "date", required: true },
+//         { name: "department", type: "text", required: false }
+//       ]
+//     },
+//     icon: "🏆"
+//   },
+//   {
+//     code: "ACHIEVEMENT",
+//     name: "Achievement Certificate",
+//     description: "Recognition for academic, spiritual, or ministry achievements",
+//     fieldSchema: {
+//       fields: [
+//         { name: "achievementDescription", type: "text", required: true },
+//         { name: "dateOfAchievement", type: "date", required: true },
+//         { name: "awardedBy", type: "text", required: false },
+//         { name: "level", type: "text", required: false }
+//       ]
+//     },
+//     icon: "🎖️"
+//   },
+//   {
+//     code: "CUSTOM",
+//     name: "Custom Certificate",
+//     description: "Custom department certificate",
+//     fieldSchema: {
+//       fields: [
+//         { name: "title", type: "text", required: true },
+//         { name: "completionDate", type: "date", required: true },
+//         { name: "department", type: "text", required: false },
+//         { name: "customContent", type: "textarea", required: true, maxLength: 500 }
+//       ]
+//     },
+//     icon: "📜"
+//   }
+// ];
+//
+// await prisma.certificateType.createMany({
+//   data: certificateTypes
+// });

@@ -1,0 +1,33 @@
+{
+  "name": "adventify",
+  "version": "1.0.0",
+  "description": "Digital Verification Platform for Church Members",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next": "^16.0.0",
+    "@prisma/client": "^5.0.0",
+    "qrcode": "^1.5.0",
+    "pdfkit": "^0.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.0.0",
+    "tailwindcss": "^3.0.0",
+    "postcss": "^8.0.0",
+    "autoprefixer": "^10.0.0",
+    "prisma": "^5.0.0",
+    "@types/pdfkit": "^0.12.0"
+  }
+}
