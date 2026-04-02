@@ -1,404 +1,195 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Shield,
-  Church,
-  Calendar,
-  User,
-  FileText,
-  Loader2,
-  QrCode,
-  Download,
-  Printer,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, Share2, Download, Loader2 } from 'lucide-react';
 
-interface CertificateData {
-  bcn: string;
-  personName: string;
-  baptismDate: string;
-  churchName: string;
-  churchLocation: string;
-  pastorName: string;
-  status: string;
-  certificateDate: string;
-  issueDate?: string;
-  // Revocation fields
-  isRevoked: boolean;
-  revokedAt?: string | null;
-  revocationReason?: string | null;
-  revokedByName?: string | null;
+interface VerificationData {
+  valid: boolean;
+  certificate?: {
+    bcn: string;
+    recipientName: string;
+    baptismDate: string;
+    church: string;
+    pastor: string;
+    certificateDate: string;
+  };
+  verification?: {
+    isValid: boolean;
+    isRevoked: boolean;
+    digitalSignatureValid: boolean;
+    blockchainVerified: boolean;
+    lastVerified: string;
+  };
+  securityFeatures?: Array<{
+    icon: string;
+    label: string;
+    status: string;
+  }>;
 }
 
-export default function VerifyCertificatePage() {
+export default function VerificationPage() {
   const params = useParams();
-  const router = useRouter();
   const bcn = params.bcn as string;
 
+  const [data, setData] = useState<VerificationData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [verified, setVerified] = useState<boolean | null>(null);
-  const [data, setData] = useState<CertificateData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [verificationTimestamp, setVerificationTimestamp] = useState<string>('');
 
   useEffect(() => {
-    async function verifyCertificate() {
+    const fetchCertificate = async () => {
       try {
+        setLoading(true);
         const response = await fetch(`/api/verify/${bcn}`);
-        const result = await response.json();
-
-        setVerified(result.verified);
-        setVerificationTimestamp(new Date().toISOString());
-        if (result.verified && result.data) {
-          setData(result.data);
-        } else {
-          setError(result.error || 'Certificate not found');
-        }
+        if (!response.ok) throw new Error('Certificate not found');
+        const json = await response.json();
+        setData(json);
       } catch (err) {
-        setVerified(false);
-        setError('Failed to verify certificate. Please check your connection and try again.');
+        setError(err instanceof Error ? err.message : 'Error verifying certificate');
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     if (bcn) {
-      verifyCertificate();
+      fetchCertificate();
     }
   }, [bcn]);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const handleDownloadReport = () => {
-    if (!data) return;
-    const lines = [
-      '========================================',
-      '  ADVENTIFY - Certificate Verification Report',
-      '========================================',
-      '',
-      `Certificate Number: ${data.bcn}`,
-      `Verification Status: ${data.isRevoked ? 'REVOKED' : 'VERIFIED'}`,
-      `Verification Timestamp: ${formatDateTime(verificationTimestamp)}`,
-      '',
-      '--- Certificate Details ---',
-      `Baptized Person: ${data.personName}`,
-      `Baptism Date: ${formatDate(data.baptismDate)}`,
-      `Church: ${data.churchName}`,
-      `Location: ${data.churchLocation}`,
-      `Officiating Minister: ${data.pastorName}`,
-      `Certificate Issued: ${formatDate(data.certificateDate)}`,
-      `Record Status: ${data.status}`,
-      '',
-    ];
-
-    if (data.isRevoked) {
-      lines.push('--- REVOCATION NOTICE ---');
-      lines.push(`THIS CERTIFICATE HAS BEEN REVOKED`);
-      lines.push(`Revocation Date: ${data.revokedAt ? formatDate(data.revokedAt) : 'N/A'}`);
-      lines.push(`Revocation Reason: ${data.revocationReason || 'Not specified'}`);
-      lines.push(`Revoked By: ${data.revokedByName || 'Unknown'}`);
-      lines.push('');
-    }
-
-    lines.push('--- Verification Info ---');
-    lines.push(`Verified via: ADVENTIFY Verification Portal`);
-    lines.push(`URL: ${typeof window !== 'undefined' ? window.location.href : data.bcn}`);
-    lines.push('');
-    lines.push('This report was generated by the Adventify Certificate');
-    lines.push('Verification System. For questions, contact your local');
-    lines.push('Seventh-day Adventist Church conference office.');
-    lines.push('========================================');
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `verification-report-${data.bcn.replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-emerald-100">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/verify" className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
-                <Church className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <span className="text-xl font-bold text-emerald-700">ADVENTIFY</span>
-                <p className="text-xs text-gray-400 -mt-0.5">Baptism Certificate Verification</p>
-              </div>
-            </Link>
-            <Link href="/verify">
-              <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                Verify Another
-              </Button>
-            </Link>
-          </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Verifying certificate...</p>
         </div>
-      </header>
+      </div>
+    );
+  }
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-12">
-        {loading ? (
-          <Card className="shadow-xl border-0 shadow-emerald-100/50">
-            <CardContent className="py-20 text-center">
-              <div className="relative inline-flex">
-                <div className="w-16 h-16 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin"></div>
-                <Shield className="h-6 w-6 text-emerald-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
-              </div>
-              <p className="text-gray-600 mt-6 text-lg">Verifying certificate...</p>
-              <p className="text-gray-400 text-sm mt-1 font-mono">{bcn}</p>
-            </CardContent>
-          </Card>
-        ) : verified && data ? (
-          <div className="space-y-6" id="print-area">
-            <Card className="shadow-xl border-0 overflow-hidden shadow-emerald-100/50">
-              {/* Status Header - Valid or Revoked */}
-              {data.isRevoked ? (
-                <div className="bg-red-600 px-6 py-8 text-center">
-                  <AlertTriangle className="h-16 w-16 text-white mx-auto mb-4" />
-                  <h1 className="text-2xl font-bold text-white mb-2">
-                    THIS CERTIFICATE HAS BEEN REVOKED
-                  </h1>
-                  <p className="text-red-100">
-                    This baptism certificate is no longer valid
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-emerald-600 px-6 py-8 text-center">
-                  <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
-                  <h1 className="text-2xl font-bold text-white mb-2">
-                    Certificate Verified
-                  </h1>
-                  <p className="text-emerald-100">
-                    This is a valid, authentic baptism certificate
-                  </p>
-                </div>
-              )}
-
-              <CardContent className="p-6 space-y-6">
-                {/* Revocation Details */}
-                {data.isRevoked && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-5 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h3 className="font-semibold text-red-800">Revocation Details</h3>
-                        <div className="mt-2 space-y-1 text-sm">
-                          <p>
-                            <span className="text-red-600 font-medium">Reason: </span>
-                            <span className="text-red-700">{data.revocationReason || 'Not specified'}</span>
-                          </p>
-                          <p>
-                            <span className="text-red-600 font-medium">Revoked On: </span>
-                            <span className="text-red-700">{data.revokedAt ? formatDateTime(data.revokedAt) : 'N/A'}</span>
-                          </p>
-                          <p>
-                            <span className="text-red-600 font-medium">Revoked By: </span>
-                            <span className="text-red-700">{data.revokedByName || 'Unknown'}</span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Certificate Number */}
-                <div className="bg-gray-50 rounded-lg p-5 text-center border border-gray-100">
-                  <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider font-medium">Certificate Number (BCN)</p>
-                  <p className="font-mono text-xl font-bold text-gray-900 tracking-wide">{data.bcn}</p>
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <QrCode className="h-4 w-4 text-gray-400" />
-                    <span className="text-xs text-gray-400">
-                      {typeof window !== 'undefined' ? window.location.origin : ''}/verify/{data.bcn}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid gap-4">
-                  <div className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <User className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Baptized Person</p>
-                      <p className="font-semibold text-gray-900 text-lg">{data.personName}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Calendar className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Baptism Date</p>
-                      <p className="font-semibold text-gray-900">{formatDate(data.baptismDate)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Church className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Church</p>
-                      <p className="font-semibold text-gray-900">{data.churchName}</p>
-                      <p className="text-sm text-gray-500">{data.churchLocation}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Shield className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Officiating Minister</p>
-                      <p className="font-semibold text-gray-900">{data.pastorName}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Certificate Issued</p>
-                      <p className="font-semibold text-gray-900">{formatDate(data.certificateDate)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status & Verification Timestamp */}
-                <div className="pt-6 border-t border-gray-100 space-y-4">
-                  <div className="flex items-center justify-center gap-3">
-                    {data.isRevoked ? (
-                      <Badge className="bg-red-100 text-red-700 text-sm px-4 py-1.5 border border-red-200">
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Revoked
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-green-100 text-green-700 text-sm px-4 py-1.5 border border-green-200">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Verified &amp; Valid
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400">
-                      Verified on {formatDateTime(verificationTimestamp)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                    onClick={() => window.print()}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                    onClick={handleDownloadReport}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Report
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <Card className="shadow-xl border-0 shadow-red-100/50">
-            <CardContent className="py-16 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-red-50 rounded-full mb-5">
-                <XCircle className="h-10 w-10 text-red-500" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                Certificate Not Found
-              </h1>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                {error || 'The certificate number you entered could not be verified. Please double-check the number and try again.'}
-              </p>
-              <div className="bg-gray-50 rounded-lg p-5 mb-8 max-w-sm mx-auto border border-gray-100">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Certificate Number Entered</p>
-                <p className="font-mono font-bold text-gray-900 text-lg">{bcn}</p>
-              </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 max-w-md mx-auto">
-                <p className="text-sm text-amber-700">
-                  <strong>Tips:</strong> Certificate numbers are formatted as <span className="font-mono text-xs">DIV-UNI-CON-CH-YEAR-SERIAL</span>. Make sure you have the correct number from the physical certificate or QR code.
-                </p>
-              </div>
-              <Link href="/verify">
-                <Button className="bg-emerald-600 hover:bg-emerald-700 h-11 px-8">
-                  Try Another Certificate
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white/80 backdrop-blur-sm border-t border-emerald-100">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Church className="h-4 w-4 text-emerald-600" />
-            <span className="text-sm font-semibold text-emerald-700">ADVENTIFY</span>
-          </div>
-          <p className="text-xs text-gray-400">
-            Powered by ADVENTIFY &mdash; Seventh-day Adventist Church
+  if (error || !data?.valid) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="max-w-md w-full p-6 bg-red-50 border border-red-200 rounded-lg">
+          <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-red-900 text-center mb-2">
+            Invalid Certificate
+          </h1>
+          <p className="text-red-700 text-center">
+            {error || 'This certificate could not be verified or has been revoked.'}
           </p>
         </div>
-      </footer>
+      </div>
+    );
+  }
 
-      {/* Print-friendly styles */}
-      <style jsx global>{`
-        @media print {
-          body { background: white !important; }
-          header, footer, button, a[href="/verify"] { display: none !important; }
-          main { padding: 0 !important; margin: 0 !important; }
-          .shadow-xl { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-          .bg-gradient-to-br { background: white !important; }
-        }
-      `}</style>
+  if (data?.verification?.isRevoked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="max-w-md w-full p-6 bg-orange-50 border border-orange-200 rounded-lg">
+          <AlertCircle className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-orange-900 text-center mb-2">
+            Certificate Revoked
+          </h1>
+          <p className="text-orange-700 text-center">
+            This certificate has been revoked and is no longer valid.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const cert = data?.certificate;
+  const verification = data?.verification;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto mb-4" />
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Certificate Verified
+          </h1>
+          <p className="text-gray-600">This baptism certificate is authentic and valid</p>
+        </div>
+
+        {/* Main Certificate Card */}
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+          {/* Certificate Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <p className="text-gray-600 text-sm font-semibold mb-1">RECIPIENT</p>
+              <p className="text-2xl font-bold text-gray-900 mb-4">{cert?.recipientName}</p>
+
+              <p className="text-gray-600 text-sm font-semibold mb-1">BAPTIZED</p>
+              <p className="text-lg text-gray-800 mb-4">
+                {cert?.baptismDate && new Date(cert.baptismDate).toLocaleDateString()}
+              </p>
+
+              <p className="text-gray-600 text-sm font-semibold mb-1">LOCATION</p>
+              <p className="text-lg text-gray-800 mb-4">{cert?.church}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-600 text-sm font-semibold mb-1">CERTIFICATE ID</p>
+              <p className="text-lg font-mono text-gray-900 mb-4 bg-gray-100 p-3 rounded">
+                {cert?.bcn}
+              </p>
+
+              <p className="text-gray-600 text-sm font-semibold mb-1">PASTOR</p>
+              <p className="text-lg text-gray-800 mb-4">{cert?.pastor}</p>
+
+              <p className="text-gray-600 text-sm font-semibold mb-1">ISSUED</p>
+              <p className="text-lg text-gray-800">
+                {cert?.certificateDate && new Date(cert.certificateDate).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          {/* Security Features */}
+          {data?.securityFeatures && (
+            <div className="border-t pt-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Security Features</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {data.securityFeatures.map((feature, idx) => (
+                  <div key={idx} className="flex items-center space-x-3 p-3 bg-gray-50 rounded">
+                    <span className="text-2xl">{feature.icon}</span>
+                    <div>
+                      <p className="font-semibold text-gray-900">{feature.label}</p>
+                      <p className="text-sm text-green-600 font-medium">✓ {feature.status}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-4 justify-center mb-8">
+          <Button className="gap-2">
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Button>
+          <Button variant="outline" className="gap-2">
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+        </div>
+
+        {/* Verification Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+          <p className="text-sm text-gray-600 mb-2">
+            Last verified: {verification?.lastVerified && new Date(verification.lastVerified).toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-500">
+            This certificate can be shared with confidence. You can verify it anytime at this link.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
