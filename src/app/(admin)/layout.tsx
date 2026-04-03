@@ -28,6 +28,7 @@ import {
   FileBarChart,
   Palette,
   Layers,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LanguageSelector } from '@/components/language-selector';
@@ -39,6 +40,7 @@ const navigation = [
   { name: 'Persons', href: '/persons', icon: Users, minRole: Role.CHURCH_CLERK },
   { name: 'Baptism Records', href: '/baptism-records', icon: FileText, minRole: Role.CHURCH_CLERK },
   { name: 'Certificates', href: '/certificates', icon: Award, minRole: Role.CHURCH_CLERK },
+  { name: 'Introduction Letters', href: '/introduction-letters', icon: BookOpen, minRole: Role.CHURCH_CLERK },
   { name: 'Templates', href: '/templates', icon: Palette, minRole: Role.CHURCH_CLERK },
   { name: 'Batch Operations', href: '/batch', icon: Layers, minRole: Role.CHURCH_CLERK },
   { name: 'Reports', href: '/reports', icon: FileBarChart, minRole: Role.CHURCH_CLERK },
