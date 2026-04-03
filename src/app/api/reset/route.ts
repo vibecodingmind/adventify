@@ -6,15 +6,19 @@ import { execSync } from 'child_process';
 export async function POST() {
   try {
     // Delete all data in correct order (respect foreign keys)
+    await db.notification.deleteMany();
+    await db.memberRequest.deleteMany();
+    await db.auditLog.deleteMany();
     await db.certificate.deleteMany();
     await db.baptismRecord.deleteMany();
-    await db.auditLog.deleteMany();
     await db.person.deleteMany();
     await db.user.deleteMany();
     await db.church.deleteMany();
     await db.conference.deleteMany();
     await db.union.deleteMany();
     await db.division.deleteMany();
+    await db.batchJob.deleteMany();
+    await db.certificateTemplate.deleteMany();
     await db.systemSetting.deleteMany();
 
     // Re-push schema to recreate enums with new values
