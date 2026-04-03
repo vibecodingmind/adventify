@@ -24,7 +24,8 @@ const MALE_FIRST_NAMES = [
   'Kevin','Brian','George','Timothy','Ronald','Edward','Jason','Jeffrey','Ryan','Jacob',
   'Gary','Nicholas','Eric','Jonathan','Stephen','Larry','Justin','Scott','Brandon','Benjamin',
   'Samuel','Raymond','Gregory','Frank','Alexander','Patrick','Jack','Dennis','Jerry','Tyler',
-  'Aaron','Nathan','Henry','Peter','Douglas','Adam','Zachary','Walter',
+  'Aaron','Nathan','Henry','Peter','Douglas','Adam','Zachary','Walter','Marcus','Theodore',
+  'Elijah','Luke','Owen','Caleb','Isaac','Dylan','Lincoln','Gabriel','Carter','Julian',
 ] as const;
 
 const FEMALE_FIRST_NAMES = [
@@ -32,7 +33,8 @@ const FEMALE_FIRST_NAMES = [
   'Christine','Margaret','Catherine','Dorothy','Rebecca','Sharon','Laura','Cynthia','Kathleen','Amy',
   'Angela','Shirley','Anna','Brenda','Pamela','Emma','Nicole','Helen','Samantha','Katherine',
   'Christina','Debra','Rachel','Carolyn','Janet','Maria','Heather','Diane','Ruth','Julie',
-  'Olivia','Joyce','Virginia','Victoria','Kelly','Lauren','Joan',
+  'Olivia','Joyce','Virginia','Victoria','Kelly','Lauren','Joan','Grace','Faith','Hope',
+  'Chloe','Sophia','Isabella','Ava','Mia','Charlotte','Amelia','Harper','Evelyn','Abigail',
 ] as const;
 
 const LAST_NAMES = [
@@ -42,14 +44,15 @@ const LAST_NAMES = [
   'Walker','Young','Allen','King','Wright','Scott','Torres','Nguyen','Hill','Flores',
   'Green','Adams','Nelson','Baker','Hall','Rivera','Campbell','Mitchell','Carter','Roberts',
   'Kowalski','Müller','Schmidt','Johansson','Eriksson','Okafor','Mensah','Kwame','Adeyemi',
-  'Kim','Tanaka','Chen','Singh','Patel','Shah',
+  'Kim','Tanaka','Chen','Singh','Patel','Shah','Mwangi','Okonkwo','Diallo','Ndiaye',
 ] as const;
 
 const CHURCH_TEMPLATES = [
   'Central SDA Church','First SDA Church','Grace SDA Church','Hope SDA Church',
   'Bethel SDA Church','Emmanuel SDA Church','Victory SDA Church','Light of the World SDA Church',
   'Morning Star SDA Church','New Life SDA Church','Faith SDA Church','Redeemed SDA Church',
-  'Glorious SDA Church','Peace SDA Church','Trinity SDA Church',
+  'Glorious SDA Church','Peace SDA Church','Trinity SDA Church','Riverside SDA Church',
+  'Gospel SDA Church','Zion SDA Church','Bethany SDA Church','Covenant SDA Church',
 ] as const;
 
 const STREET_NAMES = [
@@ -57,6 +60,7 @@ const STREET_NAMES = [
   'Maple Dr','Pine St','Walnut Ave','Birch Rd','Highland Ave','River Rd',
   'Spring St','Valley Dr','Lake Ave','Forest Ln','Meadow St','Hill Rd',
   'Grove Ave','Creek Ln','Plaza Dr','Broadway','Station Rd','Market St',
+  'Victoria Rd','Independence Ave','Liberty St','Martin Luther King Jr Blvd','Church St','Mission Rd',
 ];
 
 // ---- Hierarchy definitions ----
@@ -91,7 +95,7 @@ const CONFERENCES = [
   { code: 'TEX', name: 'Texas Conference', unIdx: 5, hq: 'Houston, TX, USA' },
 ];
 
-// Each conference maps to 5 [city, country] pairs for its churches
+// Each conference maps to city/country pairs for its churches
 const CONF_CHURCH_LOCS: Array<Array<{ city: string; country: string }>> = [
   // 0 Moscow
   Array(5).fill(null).map(() => ({ city: 'Moscow', country: 'Russia' })),
@@ -229,7 +233,7 @@ async function batchInsert<T>(
 }
 
 // ============================================================
-// POST HANDLER
+// POST HANDLER — BOOSTED SEED FOR IMPRESSIVE ANALYTICS
 // ============================================================
 
 export async function POST() {
@@ -409,7 +413,7 @@ export async function POST() {
     await batchInsert(db.user, clerkData);
     console.log(`[seed] ${clerkData.length} clerks created`);
 
-    // Fetch all local (non-admin) users for later FK references
+    // Fetch all users for FK references
     const allPastors = await db.user.findMany({ where: { role: Role.CHURCH_PASTOR } });
     const allClerks = await db.user.findMany({ where: { role: Role.CHURCH_CLERK } });
     const allUsers = [...adminUsers, ...allPastors, ...allClerks];
@@ -422,10 +426,9 @@ export async function POST() {
     }
 
     // ===========================================================
-    // 8. PERSONS  (800 — weighted across churches for variation)
+    // 8. PERSONS  (2,500 — for rich analytics data)
     // ===========================================================
-    // Assign weight to each church so some churches are bigger
-    const churchWeight = Array.from({ length: 60 }, () => randomInt(8, 18));
+    const churchWeight = Array.from({ length: 60 }, () => randomInt(30, 55));
     const weightSum = churchWeight.reduce((a, b) => a + b, 0);
 
     function pickChurchIndex(): number {
@@ -442,18 +445,25 @@ export async function POST() {
       gender: string; email: string; churchId: string;
     }> = [];
 
-    for (let i = 0; i < 800; i++) {
+    const usedEmails = new Set<string>();
+    for (let i = 0; i < 2500; i++) {
       const gender = Math.random() < 0.55 ? 'Female' : 'Male';
       const firstName = gender === 'Female' ? randomItem(FEMALE_FIRST_NAMES) : randomItem(MALE_FIRST_NAMES);
       const lastName = randomItem(LAST_NAMES);
       const churchIdx = pickChurchIndex();
 
+      let email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${i}@email.com`;
+      if (usedEmails.has(email)) {
+        email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${i}.${nanoid(4)}@email.com`;
+      }
+      usedEmails.add(email);
+
       personData.push({
         pid: generatePID(),
         fullName: `${firstName} ${lastName}`,
-        dateOfBirth: new Date(randomInt(1958, 2006), randomInt(0, 11), randomInt(1, 28)),
+        dateOfBirth: new Date(randomInt(1950, 2010), randomInt(0, 11), randomInt(1, 28)),
         gender,
-        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${i}@email.com`,
+        email,
         churchId: allChurches[churchIdx].id,
       });
     }
@@ -463,10 +473,10 @@ export async function POST() {
     console.log(`[seed] ${allPersons.length} persons`);
 
     // ===========================================================
-    // 9. BAPTISM RECORDS  (500)
-    //    350 APPROVED (spread 2021–2025, summer-weighted months)
-    //    100 PENDING  (mostly 2025–2026)
-    //     50 REJECTED (spread 2022–2025)
+    // 9. BAPTISM RECORDS  (1,200)
+    //    800 APPROVED (spread 2020–2026 with growth trend)
+    //    250 PENDING  (mostly 2025–2026)
+    //    150 REJECTED (spread 2020–2025)
     // ===========================================================
     const bapData: Array<{
       personId: string; churchId: string; baptismDate: Date;
@@ -474,13 +484,14 @@ export async function POST() {
       approvedBy?: string; approvedAt?: Date; rejectionReason?: string;
     }> = [];
 
-    // --- APPROVED (350) ---
+    // --- APPROVED (800) — growth trend: 60, 80, 110, 150, 200, 200 ---
     const approvedYearPlan = [
-      { year: 2021, count: 50 },
-      { year: 2022, count: 65 },
-      { year: 2023, count: 80 },
-      { year: 2024, count: 90 },
-      { year: 2025, count: 65 },
+      { year: 2020, count: 60 },
+      { year: 2021, count: 80 },
+      { year: 2022, count: 110 },
+      { year: 2023, count: 150 },
+      { year: 2024, count: 200 },
+      { year: 2025, count: 200 },
     ];
     let pIdx = 0;
     for (const plan of approvedYearPlan) {
@@ -503,13 +514,13 @@ export async function POST() {
       }
     }
 
-    // --- PENDING (100) ---
-    for (let j = 0; j < 100 && pIdx < allPersons.length; j++, pIdx++) {
+    // --- PENDING (250) ---
+    for (let j = 0; j < 250 && pIdx < allPersons.length; j++, pIdx++) {
       const person = allPersons[pIdx];
       const church = allChurches.find((c) => c.id === person.churchId) ?? allChurches[0];
       const pastor = pastorsByChurch.get(church.id);
       const pName = pastor ? pastor.fullName.replace(/^Pastor\s+/i, '') : 'James Wilson';
-      const year = Math.random() < 0.75 ? 2025 : 2026;
+      const year = Math.random() < 0.7 ? 2025 : 2026;
       bapData.push({
         personId: person.id,
         churchId: church.id,
@@ -519,7 +530,7 @@ export async function POST() {
       });
     }
 
-    // --- REJECTED (50) ---
+    // --- REJECTED (150) ---
     const rejectReasons = [
       'Incomplete documentation provided',
       'Baptism ceremony not properly witnessed',
@@ -527,13 +538,15 @@ export async function POST() {
       'Baptism did not follow approved procedures',
       'Record submitted past the deadline',
       'Supporting documents could not be verified',
+      'Candidate did not complete baptismal class requirements',
+      'Incorrect baptismal venue — not an approved location',
     ];
-    for (let j = 0; j < 50 && pIdx < allPersons.length; j++, pIdx++) {
+    for (let j = 0; j < 150 && pIdx < allPersons.length; j++, pIdx++) {
       const person = allPersons[pIdx];
       const church = allChurches.find((c) => c.id === person.churchId) ?? allChurches[0];
       const pastor = pastorsByChurch.get(church.id);
       const pName = pastor ? pastor.fullName.replace(/^Pastor\s+/i, '') : 'Robert Davis';
-      const year = weightedPick([2022, 2023, 2024, 2025] as const, [1, 2, 3, 4]);
+      const year = weightedPick([2020, 2021, 2022, 2023, 2024, 2025] as const, [1, 1, 2, 3, 3, 3]);
       bapData.push({
         personId: person.id,
         churchId: church.id,
@@ -550,7 +563,7 @@ export async function POST() {
     console.log(`[seed] ${allBaptisms.length} baptism records (${approvedRecords.length} approved)`);
 
     // ===========================================================
-    // 10. CERTIFICATES  (350 — one per APPROVED record)
+    // 10. CERTIFICATES  (800 — one per APPROVED record)
     // ===========================================================
     const certData = approvedRecords.map((rec, idx) => {
       const yr = rec.baptismDate.getFullYear();
@@ -567,7 +580,7 @@ export async function POST() {
     console.log(`[seed] ${certData.length} certificates`);
 
     // ===========================================================
-    // 11. MEMBER REQUESTS  (150)
+    // 11. MEMBER REQUESTS  (500 — all 5 document types, rich statuses)
     // ===========================================================
     const docTypes: DocumentType[] = Object.values(DocumentType) as DocumentType[];
     const reqStatuses: RequestStatus[] = [
@@ -583,12 +596,20 @@ export async function POST() {
       'Scholarship application',
       'Legal proceedings requirement',
       'Wedding documentation',
+      'Ministry volunteer clearance',
+      'School enrollment verification',
+      'Adoption proceedings',
+      'Medical mission trip requirements',
+      'Conference delegation credential',
+      'Sabbatical leave documentation',
     ];
     const rejectReqReasons = [
       'Insufficient documentation provided',
       'Request not approved by pastor',
       'Duplicate request detected',
       'Information mismatch on records',
+      'Member not in good standing',
+      'Request requires additional verification',
     ];
 
     const mrData: Array<{
@@ -598,15 +619,15 @@ export async function POST() {
     }> = [];
 
     const usedReqIds = new Set<string>();
-    for (let i = 0; i < 150; i++) {
-      const person = allPersons[i % Math.min(allPersons.length, 500)];
+    for (let i = 0; i < 500; i++) {
+      const person = allPersons[i % Math.min(allPersons.length, 800)];
       const churchId = person.churchId ?? allChurches[0].id;
       const clerk = allClerks.find((c) => c.churchId === churchId) ?? allClerks[0];
       const memberId = clerk.id;
 
       let requestId: string;
       do {
-        const yr = weightedPick([2024, 2025] as const, [2, 8]);
+        const yr = weightedPick([2023, 2024, 2025, 2026] as const, [1, 3, 5, 1]);
         const chars = Array.from({ length: 8 }, () =>
           'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)],
         ).join('');
@@ -614,7 +635,8 @@ export async function POST() {
       } while (usedReqIds.has(requestId));
       usedReqIds.add(requestId);
 
-      const status = weightedPick(reqStatuses, [20, 15, 10, 55]);
+      // Weight: 55% GENERATED, 20% PENDING, 12% APPROVED, 13% REJECTED
+      const status = weightedPick(reqStatuses, [20, 12, 13, 55]);
 
       const entry: typeof mrData[number] = {
         requestId,
@@ -634,7 +656,7 @@ export async function POST() {
     console.log(`[seed] ${mrData.length} member requests`);
 
     // ===========================================================
-    // 12. AUDIT LOGS  (200)
+    // 12. AUDIT LOGS  (500 — diverse activity feed)
     // ===========================================================
     const auditTemplates = [
       { action: 'CREATE', entity: 'BaptismRecord', tpl: 'Created baptism record for {p}' },
@@ -644,27 +666,31 @@ export async function POST() {
       { action: 'LOGIN', entity: 'User', tpl: '{u} logged in from {ip}' },
       { action: 'UPDATE', entity: 'MemberRequest', tpl: 'Updated document request {req}' },
       { action: 'APPROVE', entity: 'MemberRequest', tpl: 'Approved & generated document for request {req}' },
+      { action: 'CREATE', entity: 'Person', tpl: 'New member registration: {p}' },
+      { action: 'UPDATE', entity: 'Person', tpl: 'Updated member profile for {p}' },
+      { action: 'CREATE', entity: 'MemberRequest', tpl: 'New document request submitted for {p}' },
+      { action: 'DELETE', entity: 'MemberRequest', tpl: 'Cancelled document request {req}' },
     ];
 
-    const samplePersons = allPersons.slice(0, 30);
-    const sampleUsers = allUsers.slice(0, 25);
+    const samplePersons = allPersons.slice(0, 100);
+    const sampleUsers = allUsers.slice(0, 40);
 
     const auditData: Array<{
       userId: string; action: string; entity: string;
       details: string; ipAddress: string; createdAt: Date;
     }> = [];
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 500; i++) {
       const tmpl = randomItem(auditTemplates);
       const person = randomItem(samplePersons);
       const user = randomItem(sampleUsers);
-      const daysAgo = randomInt(0, 365);
+      const daysAgo = randomInt(0, 730); // spread over 2 years
       const details = tmpl.tpl
         .replace('{p}', person.fullName)
         .replace('{u}', user.fullName)
         .replace('{ip}', `192.168.${randomInt(1, 254)}.${randomInt(1, 254)}`)
-        .replace('{bcn}', `BCN-2024-${String(randomInt(1, 350)).padStart(6, '0')}`)
-        .replace('{req}', `REQ-2025-${Array.from({ length: 8 }, () =>
+        .replace('{bcn}', `BCN-${weightedPick([2023, 2024, 2025] as const, [1, 3, 6])}-${String(randomInt(1, 800)).padStart(6, '0')}`)
+        .replace('{req}', `REQ-${weightedPick([2024, 2025] as const, [2, 8])}-${Array.from({ length: 8 }, () =>
           'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('')}`);
       auditData.push({
         userId: user.id,
@@ -679,7 +705,7 @@ export async function POST() {
     console.log(`[seed] ${auditData.length} audit logs`);
 
     // ===========================================================
-    // 13. NOTIFICATIONS  (100)
+    // 13. NOTIFICATIONS  (300)
     // ===========================================================
     const notifTitles = [
       'Baptism Record Approved',
@@ -688,6 +714,12 @@ export async function POST() {
       'Document Request Processed',
       'System Notification',
       'Membership Verification Complete',
+      'Introduction Letter Generated',
+      'Character Reference Available',
+      'Service Certificate Issued',
+      'Welcome to Adventify',
+      'Pending Review Reminder',
+      'Baptism Record Rejected',
     ];
     const notifMessages = [
       'Your baptism record has been approved by the conference administrator.',
@@ -696,6 +728,12 @@ export async function POST() {
       'Your document request has been processed successfully.',
       'Please review the pending items in your queue.',
       'Membership verification document has been generated.',
+      'Your introduction letter is ready for download.',
+      'The character reference letter for your request has been generated.',
+      'Your service certificate has been issued and is available for download.',
+      'Welcome to Adventify! Explore your dashboard to get started.',
+      'You have pending records that require your attention.',
+      'The baptism record has been returned for additional documentation.',
     ];
     const notifStatuses: NotificationStatus[] = [
       NotificationStatus.PENDING, NotificationStatus.SENT,
@@ -709,10 +747,10 @@ export async function POST() {
       sentAt: Date | null; deliveredAt: Date | null;
     }> = [];
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 300; i++) {
       const user = randomItem(sampleUsers);
-      const daysAgo = randomInt(0, 180);
-      const status = weightedPick(notifStatuses, [10, 30, 55, 5]);
+      const daysAgo = randomInt(0, 365);
+      const status = weightedPick(notifStatuses, [5, 25, 65, 5]);
       const created = new Date(Date.now() - daysAgo * 86_400_000);
       notifData.push({
         userId: user.id,
@@ -741,7 +779,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Database seeded with comprehensive demo data',
+      message: 'Database seeded with comprehensive demo data (boosted for analytics)',
       data: {
         divisions: divisions.length,
         unions: unions.length,
